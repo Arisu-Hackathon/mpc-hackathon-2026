@@ -1,180 +1,235 @@
 // sidepanel.js
-// Logique du side panel : gère les états, parle au content script et background.
+// Reads the current article, sends it to the backend, and renders SecondRead context.
 
-// ─── ÉLÉMENTS DU DOM ───
-const btnAnalyser = document.getElementById("btn-analyser");
+const API_URL = "http://localhost:3000/api/analyze";
+
+const btnAnalyze = document.getElementById("btn-analyze");
 const btnRetry = document.getElementById("btn-retry");
+const loadingText = document.getElementById("loading-text");
 
-const etatIdle = document.getElementById("etat-idle");
-const etatLoading = document.getElementById("etat-loading");
-const etatErreur = document.getElementById("etat-erreur");
-const etatResultats = document.getElementById("etat-resultats");
-const loadingTexte = document.querySelector(".loading-texte");
+const states = {
+  idle: document.getElementById("state-idle"),
+  loading: document.getElementById("state-loading"),
+  error: document.getElementById("state-error"),
+  results: document.getElementById("state-results")
+};
 
-// ─── GESTION DES ÉTATS ───
+let currentArticle = null;
 
-function afficherEtat(etat) {
-  etatIdle.classList.add("cache");
-  etatLoading.classList.add("cache");
-  etatErreur.classList.add("cache");
-  etatResultats.classList.add("cache");
-
-  if (etat === "idle") etatIdle.classList.remove("cache");
-  if (etat === "loading") etatLoading.classList.remove("cache");
-  if (etat === "erreur") etatErreur.classList.remove("cache");
-  if (etat === "resultats") etatResultats.classList.remove("cache");
+function showState(name) {
+  Object.values(states).forEach((state) => state.classList.add("hidden"));
+  states[name].classList.remove("hidden");
 }
 
-function afficherErreur(message) {
-  document.getElementById("erreur-message").textContent = message;
-  afficherEtat("erreur");
-  btnAnalyser.classList.remove("loading");
+function showError(message) {
+  document.getElementById("error-message").textContent = message;
+  btnAnalyze.disabled = false;
+  showState("error");
 }
 
-// ─── AFFICHER LES RÉSULTATS ───
+async function analyzeCurrentTab() {
+  btnAnalyze.disabled = true;
+  showState("loading");
 
-function afficherResultats(analyse) {
-  // Score
-  const score = analyse.score_fiabilite;
-  document.getElementById("score-badge").textContent = `${score}/10`;
-  document.getElementById("resume-global").textContent = analyse.resume_global;
-  setTimeout(() => {
-    document.getElementById("score-bar").style.width = `${score * 10}%`;
-    const bar = document.getElementById("score-bar");
-    if (score >= 7) bar.style.background = "var(--green)";
-    else if (score >= 4) bar.style.background = "var(--yellow)";
-    else bar.style.background = "var(--red)";
-  }, 50);
-
-  // Auteur
-  const auteur = analyse.auteur;
-  document.getElementById("auteur-nom").textContent = auteur.nom || "Non mentionné";
-  document.getElementById("auteur-notes").textContent = auteur.notes || "";
-  setTag("auteur-tag", auteur.reconnu ? "Reconnu" : "Inconnu", auteur.reconnu ? "vert" : "gris");
-
-  // Date
-  const date = analyse.date;
-  document.getElementById("date-valeur").textContent = date.trouvee || "Non trouvée";
-  document.getElementById("date-notes").textContent = date.notes || "";
-  setTag("date-tag", date.recente ? "Récent" : "Ancien", date.recente ? "vert" : "jaune");
-
-  // Langage émotionnel
-  const emotion = analyse.langage_emotionnel;
-  const tagCouleurEmotion = emotion.detecte
-    ? (emotion.severite === "élevée" ? "rouge" : "jaune")
-    : "vert";
-  const tagTexteEmotion = emotion.detecte
-    ? `${emotion.severite}`
-    : "Neutre";
-  setTag("emotion-tag", tagTexteEmotion, tagCouleurEmotion);
-
-  const exemplesContainer = document.getElementById("emotion-exemples");
-  exemplesContainer.innerHTML = "";
-  if (emotion.detecte && emotion.exemples.length > 0) {
-    emotion.exemples.forEach(mot => {
-      const span = document.createElement("span");
-      span.className = "tag-mot";
-      span.textContent = mot;
-      exemplesContainer.appendChild(span);
-    });
-  } else {
-    exemplesContainer.innerHTML = `<span class="section-notes">Aucun langage émotionnel détecté.</span>`;
-  }
-
-  // Biais
-  const biais = analyse.biais;
-  setTag("biais-tag", biais.detecte ? "Détecté" : "Aucun", biais.detecte ? "rouge" : "vert");
-  document.getElementById("biais-type").textContent = biais.type || "";
-  document.getElementById("biais-explication").textContent = biais.explication || "Aucun biais notable détecté.";
-
-  // Ce qui manque
-  document.getElementById("manque-resume").textContent = analyse.ce_qui_manque.resume || "";
-  const manqueListe = document.getElementById("manque-liste");
-  manqueListe.innerHTML = "";
-  if (analyse.ce_qui_manque.elements && analyse.ce_qui_manque.elements.length > 0) {
-    analyse.ce_qui_manque.elements.forEach(el => {
-      const li = document.createElement("li");
-      li.textContent = el;
-      manqueListe.appendChild(li);
-    });
-  }
-
-  afficherEtat("resultats");
-  btnAnalyser.classList.remove("loading");
-}
-
-function setTag(id, texte, couleur) {
-  const el = document.getElementById(id);
-  el.textContent = texte;
-  el.className = `tag tag-${couleur}`;
-}
-
-// ─── LOGIQUE PRINCIPALE ───
-
-async function analyser() {
-  btnAnalyser.classList.add("loading");
-  afficherEtat("loading");
-
-  // 1. Trouver l'onglet actif
-  let tabs;
   try {
-    tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-  } catch (e) {
-    afficherErreur("Impossible d'accéder à l'onglet actif.");
-    return;
-  }
+    loadingText.textContent = "Reading the article...";
+    const article = await extractArticleFromActiveTab();
+    currentArticle = article;
+    renderArticlePreview(article);
 
+    loadingText.textContent = "Asking SecondRead for context...";
+    const analysis = await requestAnalysis(article);
+
+    renderAnalysis(analysis);
+    chrome.storage.local.set({ lastArticle: article, lastAnalysis: analysis });
+    showState("results");
+  } catch (error) {
+    showError(error.message || "Unable to analyze this article.");
+  } finally {
+    btnAnalyze.disabled = false;
+  }
+}
+
+async function extractArticleFromActiveTab() {
+  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
   const tab = tabs[0];
-  if (!tab || !tab.id) {
-    afficherErreur("Aucun onglet actif trouvé.");
-    return;
+
+  if (!tab?.id) {
+    throw new Error("No active tab found.");
   }
 
-  // 2. Demander au content script d'extraire l'article
-  loadingTexte.textContent = "Lecture de l'article...";
-  let articleData;
-  try {
-    articleData = await chrome.tabs.sendMessage(tab.id, { type: "EXTRAIRE_ARTICLE" });
-  } catch (e) {
-    afficherErreur("Impossible de lire la page. Essaie de recharger l'onglet.");
-    return;
+  const response = await chrome.tabs.sendMessage(tab.id, { type: "EXTRACT_ARTICLE" });
+
+  if (!response?.success || !response.article) {
+    throw new Error(response?.error || "This page does not look like a readable article.");
   }
 
-  if (!articleData || !articleData.succes) {
-    afficherErreur(articleData?.erreur || "La page ne semble pas être un article.");
-    return;
+  if (!response.article.text || response.article.text.trim().length < 200) {
+    throw new Error("SecondRead needs a longer article body to analyze.");
   }
 
-  // 3. Envoyer au background pour analyse Gemini
-  loadingTexte.textContent = "Analyse en cours...";
-  let resultat;
-  try {
-    resultat = await chrome.runtime.sendMessage({
-      type: "ANALYSER",
-      article: articleData
-    });
-  } catch (e) {
-    afficherErreur("Erreur lors de l'analyse. Vérifie ta clé API Gemini.");
-    return;
-  }
-
-  if (!resultat || !resultat.succes) {
-    afficherErreur(resultat?.erreur || "Erreur inconnue lors de l'analyse.");
-    return;
-  }
-
-  // 4. Afficher les résultats
-  afficherResultats(resultat.analyse);
+  return response.article;
 }
 
-// ─── ÉVÉNEMENTS ───
+async function requestAnalysis(article) {
+  const response = await fetch(API_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ article })
+  });
 
-btnAnalyser.addEventListener("click", analyser);
-btnRetry.addEventListener("click", analyser);
+  if (!response.ok) {
+    throw new Error(`Backend returned ${response.status}. Is the Express server running?`);
+  }
 
-// Charger la dernière analyse sauvegardée si disponible
-chrome.storage.local.get(["derniereAnalyse"], (data) => {
-  if (data.derniereAnalyse) {
-    afficherResultats(data.derniereAnalyse);
+  return response.json();
+}
+
+function renderArticlePreview(article) {
+  document.getElementById("article-title").textContent = article.title || "Untitled article";
+  document.getElementById("article-meta").textContent = buildArticleMeta(article);
+  document.getElementById("article-preview-text").textContent = truncate(article.text, 360);
+}
+
+function buildArticleMeta(article) {
+  const parts = [
+    article.siteName,
+    article.author ? `By ${article.author}` : null,
+    article.publishedAt
+  ].filter(Boolean);
+
+  return parts.join(" | ") || article.url;
+}
+
+function renderAnalysis(analysis) {
+  renderCaution(analysis);
+  renderList("red-flags", analysis.redFlags, "No red flags returned.");
+  renderList("evidence-trail", analysis.evidenceTrail, "No evidence trail returned.");
+  renderOriginalSource(analysis.originalStudyOrReport);
+  renderStatisticalEvidence(analysis.statisticalEvidence);
+  renderAuthorBackground(analysis.authorBackground);
+  renderList("funding-conflicts", analysis.fundingAndConflicts, "No funding or conflict notes returned.");
+  renderList("compared-coverage", analysis.comparedCoverage, "No compared coverage returned.");
+  renderList("reader-questions", analysis.readerQuestions, "No reader questions returned.");
+}
+
+function renderCaution(analysis) {
+  const level = normalizeCautionLevel(analysis.cautionLevel);
+  const tag = document.getElementById("caution-level");
+
+  tag.textContent = level;
+  tag.className = `tag tag-${level}`;
+  document.getElementById("caution-summary").textContent =
+    analysis.cautionSummary || "SecondRead did not return a caution summary.";
+}
+
+function renderOriginalSource(source = {}) {
+  const lines = [
+    source.detected ? "Original source detected." : "Original source not detected.",
+    source.title || null,
+    source.url || null,
+    source.notes || null
+  ].filter(Boolean);
+
+  document.getElementById("original-source").textContent = lines.join(" ");
+}
+
+function renderStatisticalEvidence(stats = {}) {
+  const limitations = Array.isArray(stats.limitations) ? stats.limitations : [];
+  const lines = [
+    stats.summary || "No statistical evidence summary returned.",
+    stats.sampleSize ? `Sample size: ${stats.sampleSize}.` : null,
+    stats.effectSize ? `Effect size: ${stats.effectSize}.` : null,
+    limitations.length ? `Limitations: ${limitations.join("; ")}.` : null
+  ].filter(Boolean);
+
+  document.getElementById("statistical-evidence").textContent = lines.join(" ");
+}
+
+function renderAuthorBackground(author = {}) {
+  const notes = Array.isArray(author.backgroundNotes) ? author.backgroundNotes : [];
+  const lines = [
+    author.name ? `Author: ${author.name}.` : null,
+    author.knownFromArticle || "No author background returned.",
+    notes.length ? notes.join(" ") : null
+  ].filter(Boolean);
+
+  document.getElementById("author-background").textContent = lines.join(" ");
+}
+
+function renderList(id, items, emptyMessage) {
+  const container = document.getElementById(id);
+  container.innerHTML = "";
+
+  if (!Array.isArray(items) || items.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "section-copy";
+    empty.textContent = emptyMessage;
+    container.appendChild(empty);
+    return;
+  }
+
+  items.forEach((item) => {
+    container.appendChild(renderListItem(item));
+  });
+}
+
+function renderListItem(item) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "list-item";
+
+  if (typeof item === "string") {
+    const copy = document.createElement("p");
+    copy.className = "list-item-copy";
+    copy.textContent = item;
+    wrapper.appendChild(copy);
+    return wrapper;
+  }
+
+  const titleText = item.claim || item.title || item.label || item.question || item.source || item.topic;
+  const copyText = item.basis || item.notes || item.summary || item.context || item.answer || item.url;
+
+  if (titleText) {
+    const title = document.createElement("p");
+    title.className = "list-item-title";
+    title.textContent = titleText;
+    wrapper.appendChild(title);
+  }
+
+  const copy = document.createElement("p");
+  copy.className = "list-item-copy";
+  copy.textContent = copyText || JSON.stringify(item);
+  wrapper.appendChild(copy);
+
+  return wrapper;
+}
+
+function normalizeCautionLevel(level) {
+  if (["low", "medium", "high", "unknown"].includes(level)) {
+    return level;
+  }
+
+  return "unknown";
+}
+
+function truncate(text, maxLength) {
+  if (!text) return "";
+  const cleanText = text.replace(/\s+/g, " ").trim();
+
+  if (cleanText.length <= maxLength) return cleanText;
+  return `${cleanText.slice(0, maxLength).trim()}...`;
+}
+
+btnAnalyze.addEventListener("click", analyzeCurrentTab);
+btnRetry.addEventListener("click", analyzeCurrentTab);
+
+chrome.storage.local.get(["lastArticle", "lastAnalysis"], (data) => {
+  if (data.lastArticle && data.lastAnalysis) {
+    currentArticle = data.lastArticle;
+    renderArticlePreview(data.lastArticle);
+    renderAnalysis(data.lastAnalysis);
+    showState("results");
   }
 });

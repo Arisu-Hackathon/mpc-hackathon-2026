@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,113 +7,91 @@
   <link rel="stylesheet" href="sidepanel.css" />
 </head>
 <body>
-
   <div id="app">
-
-    <!-- HEADER -->
     <header>
       <div class="logo">
-        <span class="logo-icon">◎</span>
+        <span class="logo-icon">SR</span>
         <span class="logo-text">SecondRead</span>
       </div>
-      <button id="btn-analyser" class="btn-analyser">
-        <span class="btn-text">Analyser</span>
-        <span class="btn-icon">→</span>
+      <button id="btn-analyze" class="btn-analyze">
+        <span>Analyze</span>
       </button>
     </header>
 
-    <!-- ÉTAT : IDLE (par défaut) -->
-    <div id="etat-idle" class="etat">
-      <div class="idle-content">
-        <div class="idle-icon">◎</div>
-        <p class="idle-titre">Prêt à analyser</p>
-        <p class="idle-sous-titre">Navigue vers un article et clique sur Analyser</p>
-      </div>
-    </div>
+    <main>
+      <section id="state-idle" class="state state-centered">
+        <p class="state-title">Ready to read with context</p>
+        <p class="state-copy">Open a news article, then analyze it from this panel.</p>
+      </section>
 
-    <!-- ÉTAT : LOADING -->
-    <div id="etat-loading" class="etat cache">
-      <div class="loading-content">
+      <section id="state-loading" class="state state-centered hidden">
         <div class="spinner"></div>
-        <p class="loading-texte">Lecture de l'article...</p>
-      </div>
-    </div>
+        <p id="loading-text" class="state-copy">Reading the article...</p>
+      </section>
 
-    <!-- ÉTAT : ERREUR -->
-    <div id="etat-erreur" class="etat cache">
-      <div class="erreur-content">
-        <span class="erreur-icon">⚠</span>
-        <p id="erreur-message">Une erreur est survenue.</p>
-        <button id="btn-retry" class="btn-retry">Réessayer</button>
-      </div>
-    </div>
+      <section id="state-error" class="state state-centered hidden">
+        <p class="state-title">Something needs attention</p>
+        <p id="error-message" class="state-copy">Unable to analyze this page.</p>
+        <button id="btn-retry" class="btn-secondary">Try again</button>
+      </section>
 
-    <!-- ÉTAT : RÉSULTATS -->
-    <div id="etat-resultats" class="etat cache">
+      <section id="state-results" class="state hidden">
+        <section class="article-preview">
+          <p class="eyebrow">Article</p>
+          <h1 id="article-title"></h1>
+          <p id="article-meta" class="muted"></p>
+          <p id="article-preview-text" class="article-text"></p>
+        </section>
 
-      <!-- Score global -->
-      <div class="section section-score">
-        <div class="score-header">
-          <span class="section-label">Fiabilité</span>
-          <div class="score-badge" id="score-badge">—</div>
-        </div>
-        <div class="score-bar-bg">
-          <div class="score-bar" id="score-bar"></div>
-        </div>
-        <p id="resume-global" class="resume-global"></p>
-      </div>
+        <section class="section section-highlight">
+          <div class="section-header">
+            <p class="eyebrow">Credibility context</p>
+            <span id="caution-level" class="tag tag-unknown">Unknown</span>
+          </div>
+          <p id="caution-summary" class="section-copy"></p>
+        </section>
 
-      <!-- Auteur -->
-      <div class="section">
-        <div class="section-header">
-          <span class="section-label">Auteur</span>
-          <span class="tag" id="auteur-tag"></span>
-        </div>
-        <p id="auteur-nom" class="section-valeur"></p>
-        <p id="auteur-notes" class="section-notes"></p>
-      </div>
+        <section class="section">
+          <p class="eyebrow">Red flags</p>
+          <div id="red-flags" class="list"></div>
+        </section>
 
-      <!-- Date -->
-      <div class="section">
-        <div class="section-header">
-          <span class="section-label">Date</span>
-          <span class="tag" id="date-tag"></span>
-        </div>
-        <p id="date-valeur" class="section-valeur"></p>
-        <p id="date-notes" class="section-notes"></p>
-      </div>
+        <section class="section">
+          <p class="eyebrow">Evidence trail</p>
+          <div id="evidence-trail" class="list"></div>
+        </section>
 
-      <!-- Langage émotionnel -->
-      <div class="section">
-        <div class="section-header">
-          <span class="section-label">Langage émotionnel</span>
-          <span class="tag" id="emotion-tag"></span>
-        </div>
-        <div id="emotion-exemples" class="tags-liste"></div>
-      </div>
+        <section class="section">
+          <p class="eyebrow">Original study or report</p>
+          <div id="original-source" class="section-copy"></div>
+        </section>
 
-      <!-- Biais -->
-      <div class="section">
-        <div class="section-header">
-          <span class="section-label">Biais détecté</span>
-          <span class="tag" id="biais-tag"></span>
-        </div>
-        <p id="biais-type" class="section-valeur"></p>
-        <p id="biais-explication" class="section-notes"></p>
-      </div>
+        <section class="section">
+          <p class="eyebrow">Statistical evidence</p>
+          <div id="statistical-evidence" class="section-copy"></div>
+        </section>
 
-      <!-- Ce qui manque -->
-      <div class="section">
-        <div class="section-header">
-          <span class="section-label">Ce qui manque</span>
-        </div>
-        <p id="manque-resume" class="section-notes"></p>
-        <ul id="manque-liste" class="manque-liste"></ul>
-      </div>
+        <section class="section">
+          <p class="eyebrow">Author background</p>
+          <div id="author-background" class="section-copy"></div>
+        </section>
 
-    </div>
-    <!-- fin etat-resultats -->
+        <section class="section">
+          <p class="eyebrow">Funding and conflicts</p>
+          <div id="funding-conflicts" class="list"></div>
+        </section>
 
+        <section class="section">
+          <p class="eyebrow">Compared coverage</p>
+          <div id="compared-coverage" class="list"></div>
+        </section>
+
+        <section class="section">
+          <p class="eyebrow">Reader questions</p>
+          <div id="reader-questions" class="list"></div>
+        </section>
+      </section>
+    </main>
   </div>
 
   <script src="sidepanel.js"></script>
