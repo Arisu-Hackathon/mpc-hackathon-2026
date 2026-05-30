@@ -18,22 +18,59 @@ export function getMockAnalysis(article) {
 
     evidenceTrail: [
       {
-        type: "claim",
-        text: "The article references a study but does not name it.",
-        label: "methodology unclear"
+        title: "Article extracted",
+        summary: `SecondRead extracted the article from ${article.siteName || "this site"}.`
+      },
+      {
+        title: "Primary source check",
+        summary: "No original study, report, filing, or dataset was confirmed from the extracted text."
       }
     ],
 
-    readerQuestions: [
-      "Where is the original source for the statistics?",
-      "Does the article distinguish between correlation and causation?",
-      "What evidence would change the main interpretation?"
+    originalStudyOrReport: {
+      detected: false,
+      title: null,
+      url: null,
+      notes: "No original source was found in the article text."
+    },
+
+    statisticalEvidence: {
+      summary: "No clear statistical evidence was found in the article.",
+      sampleSize: null,
+      effectSize: null,
+      limitations: [
+        "Sample size was not visible.",
+        "Methodology details were not visible."
+      ]
+    },
+
+    authorBackground: {
+      name: article.author || null,
+      knownFromArticle: article.author
+        ? "The author name was found in the article metadata."
+        : "No author was found in the article metadata.",
+      backgroundNotes: [
+        "No external author background was checked."
+      ]
+    },
+
+    publicationContext: {
+      outlet: article.siteName || null,
+      contextNotes: []
+    },
+
+    fundingAndConflicts: [
+      "No funding or conflict information was found in the extracted article text."
     ],
 
-    meta: {
-      analyzedTitle: article.title || "Unknown",
-      analyzedUrl: article.url || "Unknown",
-      analyzedAt: new Date().toISOString()
-    }
+    comparedCoverage: [
+      "Compared coverage requires additional sources."
+    ],
+
+    readerQuestions: [
+      "Does the article link to the original source?",
+      "Are the strongest claims supported by named evidence?",
+      "What information would change how this should be read?"
+    ]
   };
 }

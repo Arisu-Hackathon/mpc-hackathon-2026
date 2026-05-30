@@ -1,6 +1,6 @@
 import express from "express";
 import { getMockAnalysis } from "../lib/mockAnalysis.js";
-import { callGroq } from "../lib/gemini.js";
+import { callGroq } from "../lib/ai.js";
 import { buildPrompt } from "../lib/prompt.js";
 
 const router = express.Router();

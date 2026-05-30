@@ -10,6 +10,7 @@ IMPORTANT RULES:
 - Only use these labels: "worth checking", "possible conflict", "methodology unclear", "not enough evidence", "verified from source"
 - Distinguish facts from inference
 - Be concise and neutral
+- If there is nothing worth flagging, return empty arrays
 
 Article to analyze:
 Title: ${article.title || "Unknown"}
@@ -36,17 +37,38 @@ Use exactly this format:
   ],
   "evidenceTrail": [
     {
-      "type": "statistic" or "claim" or "quote",
-      "text": "the specific text from the article",
-      "label": "one of the allowed labels"
+      "title": "short title for this evidence item",
+      "summary": "what was found or not found regarding this evidence"
     }
   ],
+  "originalStudyOrReport": {
+    "detected": true or false,
+    "title": "title of the study if found, or null",
+    "url": "url if found in article, or null",
+    "notes": "brief note about the original source or why it was not found"
+  },
+  "statisticalEvidence": {
+    "summary": "summary of any statistics found in the article",
+    "sampleSize": "sample size if mentioned, or null",
+    "effectSize": "effect size if mentioned, or null",
+    "limitations": ["limitation 1", "limitation 2"]
+  },
+  "authorBackground": {
+    "name": "author name or null",
+    "knownFromArticle": "what the article says about the author, or null",
+    "backgroundNotes": ["note about author credibility based only on what is in the article"]
+  },
+  "fundingAndConflicts": [
+    "any funding or conflict of interest information found, or a note that none was found"
+  ],
+  "comparedCoverage": [
+    "note that compared coverage requires additional sources"
+  ],
   "readerQuestions": [
-    "A question the reader should ask themselves"
+    "question 1",
+    "question 2",
+    "question 3"
   ]
 }
-
-If there is nothing worth flagging, return empty arrays for redFlags and evidenceTrail.
-Keep readerQuestions to a maximum of 3.
 `;
 }
