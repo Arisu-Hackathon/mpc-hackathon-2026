@@ -1,0 +1,368 @@
+/* sidepanel.css */
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+:root {
+  --bg: #0f0f0f;
+  --surface: #1a1a1a;
+  --surface2: #242424;
+  --border: #2e2e2e;
+  --text: #f0ede8;
+  --text-muted: #7a7570;
+  --text-dim: #4a4845;
+  --accent: #e8d5b0;
+  --accent2: #c9a96e;
+  --green: #4caf82;
+  --red: #e05c5c;
+  --yellow: #e8b84b;
+  --radius: 8px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ─── HEADER ─── */
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  flex-shrink: 0;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logo-icon {
+  font-size: 18px;
+  color: var(--accent2);
+  line-height: 1;
+}
+
+.logo-text {
+  font-family: 'DM Serif Display', serif;
+  font-size: 16px;
+  color: var(--accent);
+  letter-spacing: 0.02em;
+}
+
+.btn-analyser {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--accent2);
+  color: #0f0f0f;
+  border: none;
+  border-radius: var(--radius);
+  padding: 7px 14px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  letter-spacing: 0.03em;
+}
+
+.btn-analyser:hover {
+  background: var(--accent);
+  transform: translateY(-1px);
+}
+
+.btn-analyser:active {
+  transform: translateY(0);
+}
+
+.btn-analyser.loading {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* ─── ÉTATS ─── */
+
+.etat {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.cache {
+  display: none !important;
+}
+
+/* Idle */
+.idle-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 10px;
+  padding: 40px 24px;
+  text-align: center;
+}
+
+.idle-icon {
+  font-size: 36px;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+
+.idle-titre {
+  font-family: 'DM Serif Display', serif;
+  font-size: 18px;
+  color: var(--text-muted);
+}
+
+.idle-sous-titre {
+  font-size: 12px;
+  color: var(--text-dim);
+  max-width: 200px;
+}
+
+/* Loading */
+.loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 16px;
+}
+
+.spinner {
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent2);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-texte {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* Erreur */
+.erreur-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 12px;
+  padding: 40px 24px;
+  text-align: center;
+}
+
+.erreur-icon {
+  font-size: 28px;
+  color: var(--red);
+}
+
+#erreur-message {
+  color: var(--text-muted);
+  font-size: 12px;
+  max-width: 220px;
+}
+
+.btn-retry {
+  background: var(--surface2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px 14px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-retry:hover {
+  background: var(--border);
+}
+
+/* ─── RÉSULTATS ─── */
+
+#etat-resultats {
+  padding: 0 0 24px 0;
+}
+
+.section {
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.section:last-child {
+  border-bottom: none;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.section-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.section-valeur {
+  font-size: 13px;
+  color: var(--text);
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.section-notes {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* Score */
+.section-score {
+  background: var(--surface);
+}
+
+.score-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.score-badge {
+  font-family: 'DM Serif Display', serif;
+  font-size: 22px;
+  color: var(--accent);
+}
+
+.score-bar-bg {
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+
+.score-bar {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent2);
+  width: 0%;
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.resume-global {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+/* Tags */
+.tag {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: 20px;
+  text-transform: uppercase;
+}
+
+.tag-vert {
+  background: rgba(76, 175, 130, 0.15);
+  color: var(--green);
+}
+
+.tag-rouge {
+  background: rgba(224, 92, 92, 0.15);
+  color: var(--red);
+}
+
+.tag-jaune {
+  background: rgba(232, 184, 75, 0.15);
+  color: var(--yellow);
+}
+
+.tag-gris {
+  background: var(--surface2);
+  color: var(--text-muted);
+}
+
+/* Tags liste (langage émotionnel) */
+.tags-liste {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.tag-mot {
+  font-size: 11px;
+  padding: 3px 10px;
+  background: rgba(224, 92, 92, 0.1);
+  color: var(--red);
+  border: 1px solid rgba(224, 92, 92, 0.2);
+  border-radius: 20px;
+}
+
+/* Ce qui manque */
+.manque-liste {
+  margin-top: 8px;
+  padding-left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.manque-liste li {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
+}

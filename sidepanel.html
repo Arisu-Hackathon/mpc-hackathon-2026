@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SecondRead</title>
+  <link rel="stylesheet" href="sidepanel.css" />
+</head>
+<body>
+
+  <div id="app">
+
+    <!-- HEADER -->
+    <header>
+      <div class="logo">
+        <span class="logo-icon">◎</span>
+        <span class="logo-text">SecondRead</span>
+      </div>
+      <button id="btn-analyser" class="btn-analyser">
+        <span class="btn-text">Analyser</span>
+        <span class="btn-icon">→</span>
+      </button>
+    </header>
+
+    <!-- ÉTAT : IDLE (par défaut) -->
+    <div id="etat-idle" class="etat">
+      <div class="idle-content">
+        <div class="idle-icon">◎</div>
+        <p class="idle-titre">Prêt à analyser</p>
+        <p class="idle-sous-titre">Navigue vers un article et clique sur Analyser</p>
+      </div>
+    </div>
+
+    <!-- ÉTAT : LOADING -->
+    <div id="etat-loading" class="etat cache">
+      <div class="loading-content">
+        <div class="spinner"></div>
+        <p class="loading-texte">Lecture de l'article...</p>
+      </div>
+    </div>
+
+    <!-- ÉTAT : ERREUR -->
+    <div id="etat-erreur" class="etat cache">
+      <div class="erreur-content">
+        <span class="erreur-icon">⚠</span>
+        <p id="erreur-message">Une erreur est survenue.</p>
+        <button id="btn-retry" class="btn-retry">Réessayer</button>
+      </div>
+    </div>
+
+    <!-- ÉTAT : RÉSULTATS -->
+    <div id="etat-resultats" class="etat cache">
+
+      <!-- Score global -->
+      <div class="section section-score">
+        <div class="score-header">
+          <span class="section-label">Fiabilité</span>
+          <div class="score-badge" id="score-badge">—</div>
+        </div>
+        <div class="score-bar-bg">
+          <div class="score-bar" id="score-bar"></div>
+        </div>
+        <p id="resume-global" class="resume-global"></p>
+      </div>
+
+      <!-- Auteur -->
+      <div class="section">
+        <div class="section-header">
+          <span class="section-label">Auteur</span>
+          <span class="tag" id="auteur-tag"></span>
+        </div>
+        <p id="auteur-nom" class="section-valeur"></p>
+        <p id="auteur-notes" class="section-notes"></p>
+      </div>
+
+      <!-- Date -->
+      <div class="section">
+        <div class="section-header">
+          <span class="section-label">Date</span>
+          <span class="tag" id="date-tag"></span>
+        </div>
+        <p id="date-valeur" class="section-valeur"></p>
+        <p id="date-notes" class="section-notes"></p>
+      </div>
+
+      <!-- Langage émotionnel -->
+      <div class="section">
+        <div class="section-header">
+          <span class="section-label">Langage émotionnel</span>
+          <span class="tag" id="emotion-tag"></span>
+        </div>
+        <div id="emotion-exemples" class="tags-liste"></div>
+      </div>
+
+      <!-- Biais -->
+      <div class="section">
+        <div class="section-header">
+          <span class="section-label">Biais détecté</span>
+          <span class="tag" id="biais-tag"></span>
+        </div>
+        <p id="biais-type" class="section-valeur"></p>
+        <p id="biais-explication" class="section-notes"></p>
+      </div>
+
+      <!-- Ce qui manque -->
+      <div class="section">
+        <div class="section-header">
+          <span class="section-label">Ce qui manque</span>
+        </div>
+        <p id="manque-resume" class="section-notes"></p>
+        <ul id="manque-liste" class="manque-liste"></ul>
+      </div>
+
+    </div>
+    <!-- fin etat-resultats -->
+
+  </div>
+
+  <script src="sidepanel.js"></script>
+</body>
+</html>
