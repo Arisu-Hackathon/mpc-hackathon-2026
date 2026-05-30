@@ -20,6 +20,7 @@ server/
   routes/
     analyze.js
   lib/
+    gemini.js
     mockAnalysis.js
   package.json
   package-lock.json
@@ -41,6 +42,13 @@ After extension code changes, reload the extension in `chrome://extensions` and 
 cd server
 npm install
 npm run dev
+```
+
+Create `server/.env` with your Gemini API key before running live analysis:
+
+```text
+GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_MODEL=gemini-2.5-flash
 ```
 
 The backend runs at `http://localhost:3000`.
