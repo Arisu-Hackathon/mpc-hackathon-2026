@@ -2,6 +2,7 @@
 // Reads the current article, sends it to the backend, and renders SecondRead context.
 
 const API_URL = "http://localhost:3000/api/analyze";
+const USE_LOCAL_MOCK = false;
 
 const btnAnalyze = document.getElementById("btn-analyze");
 const btnRetry = document.getElementById("btn-retry");
@@ -72,6 +73,10 @@ async function extractArticleFromActiveTab() {
 }
 
 async function requestAnalysis(article) {
+  if (USE_LOCAL_MOCK) {
+    return getMockAnalysis(article);
+  }
+
   const response = await fetch(API_URL, {
     method: "POST",
     headers: {
@@ -85,6 +90,75 @@ async function requestAnalysis(article) {
   }
 
   return response.json();
+}
+
+function getMockAnalysis(article) {
+  return {
+    cautionLevel: "medium",
+    cautionSummary:
+      "This article is readable, but several claims would benefit from clearer sourcing before a reader treats them as settled context.",
+    redFlags: [
+      {
+        claim: "The article presents a broad conclusion.",
+        label: "worth checking",
+        basis: "The extracted text does not clearly show the original evidence behind the claim."
+      },
+      {
+        claim: "Some context may be assumed rather than shown.",
+        label: "not enough evidence",
+        basis: "SecondRead can only confirm what appears in the article text."
+      }
+    ],
+    evidenceTrail: [
+      {
+        title: "Article extracted",
+        summary: `SecondRead extracted the article from ${article.siteName || "this site"}.`
+      },
+      {
+        title: "Primary source check",
+        summary: "No original study, report, filing, or dataset was confirmed from the extracted text."
+      }
+    ],
+    originalStudyOrReport: {
+      detected: false,
+      title: null,
+      url: null,
+      notes: "No original source was found in the article text."
+    },
+    statisticalEvidence: {
+      summary: "The mock analysis did not find clear statistical evidence in the article text.",
+      sampleSize: null,
+      effectSize: null,
+      limitations: [
+        "Sample size was not visible.",
+        "Methodology details were not visible."
+      ]
+    },
+    authorBackground: {
+      name: article.author || null,
+      knownFromArticle: article.author
+        ? "The author name was found in the article metadata."
+        : "No author was found in the article metadata.",
+      backgroundNotes: [
+        "No external author background is checked in local mock mode."
+      ]
+    },
+    publicationContext: {
+      outlet: article.siteName || null,
+      contextNotes: []
+    },
+    fundingAndConflicts: [
+      "No funding or conflict information was found in the extracted article text."
+    ],
+    comparedCoverage: [
+      "Compared coverage is not available in local mock mode."
+    ],
+    readerQuestions: [
+      "Does the article link to the original source?",
+      "Are the strongest claims supported by named evidence?",
+      "What information would change how this should be read?"
+    ]
+  };
 }
 
 function renderArticlePreview(article) {
