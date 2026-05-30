@@ -28,8 +28,6 @@ export async function callGemini(prompt, sourceUrls = []) {
       { url_context: {} },
       { google_search: {} }
     ];
-  } else {
-    body.generationConfig.responseMimeType = "application/json";
   }
 
   const response = await fetch(GEMINI_URL, {
