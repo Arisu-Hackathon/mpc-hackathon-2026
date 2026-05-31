@@ -21,6 +21,7 @@ Core product rules:
 - If multiple relevant experts are quoted or named, analyze each separately.
 - A DOI counts as a source citation.
 - If retrieved DOI/source context is provided by the backend, use it to inspect the DOI target and cited study when accessible.
+- If only a DOI/link is provided and no retrieved source text is available, treat it as a valid citation but do not pretend you read the source.
 - If the DOI target or study is inaccessible, say "source inaccessible" or "study cited but not analyzed"; do not say no original source was provided.
 - Every major finding should include a confidence level: "high", "medium", "low", or "unknown".
 
@@ -41,7 +42,7 @@ Author: ${article.author || "Not mentioned"}
 Published: ${article.publishedAt || "Not mentioned"}
 Site: ${article.siteName || "Unknown"}
 
-Detected DOI/source URLs to inspect:
+Detected DOI/source URLs from the article:
 ${formatDoiCitations(article)}
 
 Possible references section:

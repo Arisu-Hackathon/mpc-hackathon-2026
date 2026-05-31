@@ -33,6 +33,7 @@
   --radius-sm: 10px;
   --shadow: 0 8px 22px rgba(11, 111, 164, 0.18);
   --shadow-soft: 0 3px 10px rgba(11, 111, 164, 0.12);
+  --font-humanist: "Frutiger", "Frutiger Linotype", "Avenir Next", Avenir, "Segoe UI", "Myriad Pro", "Trebuchet MS", Tahoma, system-ui, sans-serif;
 }
 
 * {
@@ -43,7 +44,7 @@ body {
   margin: 0;
   min-height: 100vh;
   color: var(--ink);
-  font-family: "Segoe UI", "Frutiger", "Myriad Pro", Tahoma, system-ui, sans-serif;
+  font-family: var(--font-humanist);
   font-size: 13px;
   line-height: 1.5;
 

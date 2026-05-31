@@ -64,7 +64,7 @@ async function extractArticleFromActiveTab() {
     throw new Error("No active tab found.");
   }
 
-  const response = await chrome.tabs.sendMessage(tab.id, { type: "EXTRACT_ARTICLE" });
+  const response = await sendExtractArticleMessage(tab.id);
 
   if (!response?.success || !response.article) {
     throw new Error(response?.error || "This page does not look like a readable article.");
@@ -75,6 +75,27 @@ async function extractArticleFromActiveTab() {
   }
 
   return response.article;
+}
+
+async function sendExtractArticleMessage(tabId) {
+  try {
+    return await chrome.tabs.sendMessage(tabId, { type: "EXTRACT_ARTICLE" });
+  } catch (error) {
+    if (!isMissingContentScriptError(error)) {
+      throw error;
+    }
+
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: ["Readability.js", "content.js"]
+    });
+
+    return chrome.tabs.sendMessage(tabId, { type: "EXTRACT_ARTICLE" });
+  }
+}
+
+function isMissingContentScriptError(error) {
+  return /receiving end does not exist|could not establish connection/i.test(error?.message || "");
 }
 
 async function requestAnalysis(article) {
@@ -160,32 +181,28 @@ const BREAKDOWN_LABELS = {
   framing: "Framing"
 };
 
-// Bar colour reflects how strong the category scored.
-function ratioClass(ratio) {
-  if (ratio >= 0.66) return "fill-good";
-  if (ratio >= 0.34) return "fill-mid";
-  return "fill-low";
-}
-
 function renderQuickRead(analysis) {
+  const quickRead = analysis.quickRead || {};
+  const supportLevel = normalizeSupportLevel(quickRead.overallSupport);
+  const cautionLevel = normalizeCautionLevel(analysis.cautionLevel);
+  const tag = document.getElementById("caution-level");
   const scoring = analysis.scoring;
   const level = scoring?.cautionLevel || "unknown";
-  const tag = document.getElementById("caution-level");
   const summary = [
     analysis.analysisMode === "fallback" ? "Fallback mode: live analysis did not complete." : null,
-    analysis.quickRead?.summary || "SecondRead did not return a quick read."
+    quickRead.summary || "SecondRead did not return a quick read."
   ].filter(Boolean);
 
-  // Numeric credibility score (rebuilt from the analysis), with the level label as fallback.
-  tag.textContent = scoring ? `${scoring.total} / ${scoring.outOf}` : level;
-  tag.className = `tag tag-${level}`;
+  // Show the numeric score when available, otherwise fall back to the level label.
+  tag.textContent = scoring ? `${scoring.total} / ${scoring.outOf}` : supportLevel;
+  tag.className = scoring ? `tag tag-${cautionLevel}` : `tag ${supportTagClass(supportLevel)}`;
 
   // Cute fruit that reflects the caution level (green apple / orange / strawberry).
   const fruit = document.getElementById("caution-fruit");
   const fruitByLevel = {
-    low: "icons/fruit-low.png",
-    medium: "icons/fruit-medium.png",
-    high: "icons/fruit-high.png"
+    low: "icons/vista/status-low.ico",
+    medium: "icons/vista/status-medium.ico",
+    high: "icons/vista/status-high.ico"
   };
   if (fruitByLevel[level]) {
     fruit.src = fruitByLevel[level];
@@ -223,6 +240,7 @@ function renderBreakdown(scoring) {
     const bar = document.createElement("div");
     bar.className = "breakdown-bar";
     const fill = document.createElement("div");
+    fill.className = "breakdown-bar-fill";
     const ratio = part.outOf ? Math.max(0, Math.min(1, part.score / part.outOf)) : 0;
     fill.className = `breakdown-bar-fill ${ratioClass(ratio)}`;
     // Start empty and let it fill up in a staggered cascade on reveal.
@@ -407,6 +425,14 @@ function normalizeSupportLevel(level) {
   return "unknown";
 }
 
+function normalizeCautionLevel(level) {
+  if (["low", "medium", "high", "unknown"].includes(level)) {
+    return level;
+  }
+
+  return "unknown";
+}
+
 function supportTagClass(level) {
   if (level === "well supported" || level === "mostly supported") {
     return "tag-low";
@@ -421,6 +447,18 @@ function supportTagClass(level) {
   }
 
   return "tag-unknown";
+}
+
+function ratioClass(ratio) {
+  if (ratio >= 0.8) {
+    return "fill-good";
+  }
+
+  if (ratio >= 0.5) {
+    return "fill-mid";
+  }
+
+  return "fill-low";
 }
 
 function truncate(text, maxLength) {

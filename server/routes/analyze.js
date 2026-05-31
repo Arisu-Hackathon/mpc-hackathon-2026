@@ -1,6 +1,6 @@
 import express from "express";
 import { getMockAnalysis } from "../lib/mockAnalysis.js";
-import { callGroq } from "../lib/ai.js";
+import { callGemini } from "../lib/gemini.js";
 import { buildPrompt } from "../lib/prompt.js";
 import { calculateScore } from "../lib/scoring.js";
 import { applySourceMetadata, extractSourceMetadata } from "../lib/sourceMetadata.js";
@@ -48,7 +48,7 @@ router.post("/", async (req, res) => {
   // Mode Gemini
   try {
     const prompt = buildPrompt(articleWithMetadata);
-    const analysis = await callGroq(prompt, sourceMetadata.doiUrls);
+    const analysis = await callGemini(prompt, sourceMetadata.doiUrls);
     const enriched = applySourceMetadata(analysis, sourceMetadata);
     res.json(withScoring(enriched));
 

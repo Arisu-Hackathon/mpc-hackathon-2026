@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const GROQ_KEY = process.env.GROQ_API_KEY;
+const GROQ_MODEL = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 export async function callGroq(prompt) {
@@ -16,8 +17,9 @@ export async function callGroq(prompt) {
       "Authorization": `Bearer ${GROQ_KEY}`
     },
     body: JSON.stringify({
-      model: "llama-3.3-70b-versatile",
+      model: GROQ_MODEL,
       temperature: 0.2,
+      response_format: { type: "json_object" },
       messages: [
         {
           role: "user",
