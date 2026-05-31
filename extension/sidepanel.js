@@ -3,7 +3,7 @@
 
 const API_URL = "http://localhost:3000/api/analyze";
 const USE_LOCAL_MOCK = false;
-const ANALYSIS_SCHEMA_VERSION = 2;
+const ANALYSIS_SCHEMA_VERSION = 4;
 
 const btnAnalyze = document.getElementById("btn-analyze");
 const btnRetry = document.getElementById("btn-retry");
@@ -99,69 +99,28 @@ async function requestAnalysis(article) {
 
 function getMockAnalysis(article) {
   return {
-    cautionLevel: "medium",
-    cautionSummary:
-      "This article is readable, but several claims would benefit from clearer sourcing before a reader treats them as settled context.",
-    redFlags: [
+    quickRead: {
+      summary: "This local mock confirms the panel can render the new structure, but it does not inspect outside sources.",
+      overallSupport: "unclear",
+      confidence: "medium"
+    },
+    mainClaims: [
       {
-        claim: "The article presents a broad conclusion.",
-        label: "worth checking",
-        basis: "The extracted text does not clearly show the original evidence behind the claim."
-      },
-      {
-        claim: "Some context may be assumed rather than shown.",
-        label: "not enough evidence",
-        basis: "SecondRead can only confirm what appears in the article text."
+        claim: article.title || "Main article claim",
+        status: "unclear",
+        why: "Local mock mode cannot judge source support.",
+        confidence: "medium"
       }
     ],
-    evidenceTrail: [
+    evidenceCheck: [
       {
-        title: "Article extracted",
-        summary: `SecondRead extracted the article from ${article.siteName || "this site"}.`
-      },
-      {
-        title: "Primary source check",
-        summary: "No original study, report, filing, or dataset was confirmed from the extracted text."
+        claim: article.title || "Main article claim",
+        support: "Extracted article text",
+        supportType: "article assertion",
+        sourceMatchesClaim: "unclear",
+        explanation: "The backend live analysis needs to check source context.",
+        confidence: "medium"
       }
-    ],
-    originalStudyOrReport: {
-      detected: false,
-      title: null,
-      url: null,
-      notes: "No original source was found in the article text."
-    },
-    statisticalEvidence: {
-      summary: "The mock analysis did not find clear statistical evidence in the article text.",
-      sampleSize: null,
-      effectSize: null,
-      limitations: [
-        "Sample size was not visible.",
-        "Methodology details were not visible."
-      ]
-    },
-    authorBackground: {
-      name: article.author || null,
-      knownFromArticle: article.author
-        ? "The author name was found in the article metadata."
-        : "No author was found in the article metadata.",
-      backgroundNotes: [
-        "No external author background is checked in local mock mode."
-      ]
-    },
-    publicationContext: {
-      outlet: article.siteName || null,
-      contextNotes: []
-    },
-    fundingAndConflicts: [
-      "No funding or conflict information was found in the extracted article text."
-    ],
-    comparedCoverage: [
-      "Compared coverage is not available in local mock mode."
-    ],
-    readerQuestions: [
-      "Does the article link to the original source?",
-      "Are the strongest claims supported by named evidence?",
-      "What information would change how this should be read?"
     ]
   };
 }
@@ -183,23 +142,22 @@ function buildArticleMeta(article) {
 }
 
 function renderAnalysis(analysis) {
-  renderCaution(analysis);
-  renderList("red-flags", analysis.redFlags, "No red flags returned.");
-  renderList("evidence-trail", analysis.evidenceTrail, "No evidence trail returned.");
-  renderOriginalSource(analysis.originalStudyOrReport);
-  renderStatisticalEvidence(analysis.statisticalEvidence);
-  renderAuthorBackground(analysis.authorBackground);
-  renderList("funding-conflicts", analysis.fundingAndConflicts, "No funding or conflict notes returned.");
-  renderList("compared-coverage", analysis.comparedCoverage, "No compared coverage returned.");
-  renderList("reader-questions", analysis.readerQuestions, "No reader questions returned.");
+  renderQuickRead(analysis);
+  renderOptionalList("section-main-claims", "main-claims", analysis.mainClaims);
+  renderOptionalList("section-evidence-check", "evidence-check", analysis.evidenceCheck);
+  renderOptionalList("section-original-sources", "original-sources", analysis.originalSources);
+  renderOptionalList("section-statistics-explained", "statistics-explained", analysis.statisticsExplained);
+  renderOptionalList("section-people-interests", "people-interests", analysis.peopleAndInterests);
+  renderOptionalList("section-language-framing", "language-framing", analysis.languageAndFraming);
+  renderOptionalList("section-compared-coverage", "compared-coverage", analysis.comparedCoverage);
 }
 
 const BREAKDOWN_LABELS = {
-  redFlags: "Red flags",
-  originalSource: "Source",
-  author: "Author",
-  statisticalEvidence: "Statistics",
-  fundingAndConflicts: "Funding"
+  claimSupport: "Claim support",
+  evidenceMatch: "Evidence",
+  sources: "Sources",
+  interests: "People",
+  framing: "Framing"
 };
 
 // Bar colour reflects how strong the category scored.
@@ -209,16 +167,16 @@ function ratioClass(ratio) {
   return "fill-low";
 }
 
-function renderCaution(analysis) {
-  const level = normalizeCautionLevel(analysis.cautionLevel);
-  const tag = document.getElementById("caution-level");
+function renderQuickRead(analysis) {
   const scoring = analysis.scoring;
+  const level = scoring?.cautionLevel || "unknown";
+  const tag = document.getElementById("caution-level");
   const summary = [
-    analysis.analysisMode === "fallback" ? "Fallback mode: Gemini live analysis did not complete." : null,
-    analysis.cautionSummary || "SecondRead did not return a caution summary."
+    analysis.analysisMode === "fallback" ? "Fallback mode: live analysis did not complete." : null,
+    analysis.quickRead?.summary || "SecondRead did not return a quick read."
   ].filter(Boolean);
 
-  // Show the numeric score when available, otherwise fall back to the level label.
+  // Numeric credibility score (rebuilt from the analysis), with the level label as fallback.
   tag.textContent = scoring ? `${scoring.total} / ${scoring.outOf}` : level;
   tag.className = `tag tag-${level}`;
 
@@ -307,55 +265,19 @@ function renderBreakdown(scoring) {
   });
 }
 
-function renderOriginalSource(source = {}) {
-  const lines = [
-    source.detected ? "Original source detected." : "Original source not detected.",
-    source.title || null,
-    source.url || null,
-    source.label ? `Label: ${source.label}.` : null,
-    source.confidence ? `Confidence: ${source.confidence}.` : null,
-    source.notes || null
-  ].filter(Boolean);
+function renderOptionalList(sectionId, listId, items) {
+  const section = document.getElementById(sectionId);
+  const hasItems = Array.isArray(items) && items.length > 0;
+  section.classList.toggle("hidden", !hasItems);
 
-  document.getElementById("original-source").textContent = lines.join(" ");
+  if (hasItems) {
+    renderList(listId, items);
+  }
 }
 
-function renderStatisticalEvidence(stats = {}) {
-  const limitations = Array.isArray(stats.limitations) ? stats.limitations : [];
-  const lines = [
-    stats.summary || "No statistical evidence summary returned.",
-    stats.sampleSize ? `Sample size: ${stats.sampleSize}.` : null,
-    stats.effectSize ? `Effect size: ${stats.effectSize}.` : null,
-    limitations.length ? `Limitations: ${limitations.join("; ")}.` : null,
-    stats.confidence ? `Confidence: ${stats.confidence}.` : null
-  ].filter(Boolean);
-
-  document.getElementById("statistical-evidence").textContent = lines.join(" ");
-}
-
-function renderAuthorBackground(author = {}) {
-  const notes = Array.isArray(author.backgroundNotes) ? author.backgroundNotes : [];
-  const lines = [
-    author.name ? `Author: ${author.name}.` : null,
-    author.knownFromArticle || "No author background returned.",
-    notes.length ? notes.join(" ") : null,
-    author.confidence ? `Confidence: ${author.confidence}.` : null
-  ].filter(Boolean);
-
-  document.getElementById("author-background").textContent = lines.join(" ");
-}
-
-function renderList(id, items, emptyMessage) {
+function renderList(id, items) {
   const container = document.getElementById(id);
   container.innerHTML = "";
-
-  if (!Array.isArray(items) || items.length === 0) {
-    const empty = document.createElement("p");
-    empty.className = "section-copy";
-    empty.textContent = emptyMessage;
-    container.appendChild(empty);
-    return;
-  }
 
   items.forEach((item) => {
     container.appendChild(renderListItem(item));
@@ -374,8 +296,17 @@ function renderListItem(item) {
     return wrapper;
   }
 
-  const titleText = item.claim || item.title || item.question || item.source || item.topic || item.label;
-  const copyText = item.basis || item.notes || item.summary || item.context || item.answer || item.url;
+  const titleText =
+    item.claim ||
+    item.title ||
+    item.name ||
+    item.number ||
+    item.statistic ||
+    item.question ||
+    item.source ||
+    item.topic ||
+    item.label;
+  const copyText = buildItemCopy(item);
   const metaText = [
     item.label && item.label !== titleText ? `Label: ${item.label}` : null,
     item.confidence ? `Confidence: ${item.confidence}` : null
@@ -403,12 +334,93 @@ function renderListItem(item) {
   return wrapper;
 }
 
-function normalizeCautionLevel(level) {
-  if (["low", "medium", "high", "unknown"].includes(level)) {
+function buildItemCopy(item) {
+  const directText = item.basis || item.notes || item.summary || item.context || item.answer || item.url;
+
+  if (directText) {
+    return directText;
+  }
+
+  const fields = [
+    ["Status", item.status],
+    ["Why", item.why],
+    ["Support", item.support],
+    ["Support type", item.supportType],
+    ["Source matches claim", item.sourceMatchesClaim],
+    ["Explanation", item.explanation],
+    ["DOI/link", item.doiOrUrl],
+    ["Source type", item.sourceType],
+    ["What it studied", item.whatItStudied],
+    ["What it found", item.whatItFound],
+    ["Represents fairly", item.articleRepresentsFairly],
+    ["Limitations", Array.isArray(item.limitations) ? item.limitations.join("; ") : item.limitations],
+    ["Meaning", item.meaning],
+    ["Evidence kind", item.evidenceKind],
+    ["Does prove", item.doesProve],
+    ["Does not prove", item.doesNotProve],
+    ["Missing context", Array.isArray(item.missingContext) ? item.missingContext.join("; ") : item.missingContext],
+    ["Verdict", item.verdict],
+    ["Role", item.role],
+    ["Known", item.whatIsKnown],
+    ["Interest/conflict", item.interestOrConflict],
+    ["Text/framing", item.textOrPattern],
+    ["Effect", item.effect],
+    ["What it adds", item.whatItAdds],
+    ["Type", item.sourceType || item.sourceKind || item.roleInArticle || item.evidenceType],
+    ["DOI/URL", item.doiOrUrl],
+    ["Primary/secondary", item.primaryOrSecondary],
+    ["Accessible", typeof item.accessible === "boolean" ? (item.accessible ? "yes" : "no") : null],
+    ["Supports", Array.isArray(item.supportsClaims) ? item.supportsClaims.join("; ") : null],
+    ["Authors/institution", item.authorsOrInstitution],
+    ["Publication date", item.publicationDate],
+    ["Main finding", item.mainFinding],
+    ["Article representation", item.articleRepresentation],
+    ["Limitations", item.limitationsOmitted],
+    ["Overstatement", item.overstatement],
+    ["Headline matches evidence", item.headlineMatchesEvidence],
+    ["Measures", item.measures],
+    ["Denominator/baseline", item.denominatorOrBaseline],
+    ["Sample size", item.sampleSize],
+    ["Time period", item.timePeriod],
+    ["Uncertainty", item.uncertainty],
+    ["Source linked", typeof item.sourceLinked === "boolean" ? (item.sourceLinked ? "yes" : "no") : null],
+    ["Certainty concern", item.certaintyConcern],
+    ["Affiliation", item.affiliation],
+    ["Expertise", item.areaOfExpertise],
+    ["Independence", item.independence],
+    ["Relevant ties", item.relevantTies],
+    ["Disclosure", item.disclosure]
+  ].filter(([, value]) => value);
+
+  if (!fields.length) {
+    return JSON.stringify(item);
+  }
+
+  return fields.map(([label, value]) => `${label}: ${value}`).join(" ");
+}
+
+function normalizeSupportLevel(level) {
+  if (["well supported", "mostly supported", "mixed", "unclear", "weakly supported", "not enough evidence"].includes(level)) {
     return level;
   }
 
   return "unknown";
+}
+
+function supportTagClass(level) {
+  if (level === "well supported" || level === "mostly supported") {
+    return "tag-low";
+  }
+
+  if (level === "mixed" || level === "unclear" || level === "not enough evidence") {
+    return "tag-medium";
+  }
+
+  if (level === "weakly supported") {
+    return "tag-high";
+  }
+
+  return "tag-unknown";
 }
 
 function truncate(text, maxLength) {
