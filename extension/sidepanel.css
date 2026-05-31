@@ -453,6 +453,36 @@ main {
   margin: 0;
 }
 
+.detail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 6px;
+}
+
+.detail-row {
+  display: grid;
+  grid-template-columns: minmax(92px, 34%) 1fr;
+  gap: 8px;
+  align-items: start;
+  padding-top: 7px;
+  border-top: 1px solid rgba(255, 255, 255, 0.65);
+}
+
+.detail-row:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.detail-label {
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.detail-value {
+  color: var(--muted);
+}
+
 /* ---------- Score pill + fruit ---------- */
 .score-pill {
   display: flex;
