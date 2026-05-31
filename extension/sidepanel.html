@@ -7,6 +7,25 @@
   <link rel="stylesheet" href="sidepanel.css" />
 </head>
 <body>
+  <div class="bubbles" aria-hidden="true">
+    <span class="bubble"></span>
+    <span class="bubble"></span>
+    <span class="bubble"></span>
+    <span class="bubble"></span>
+    <span class="bubble"></span>
+    <span class="bubble"></span>
+    <span class="bubble"></span>
+    <span class="bubble"></span>
+    <span class="bubble"></span>
+    <span class="bubble"></span>
+    <span class="bubble"></span>
+    <span class="bubble"></span>
+    <span class="bubble"></span>
+    <span class="bubble"></span>
+    <span class="bubble"></span>
+    <span class="bubble"></span>
+  </div>
+
   <div id="app">
     <header>
       <div class="logo">
@@ -37,7 +56,10 @@
 
       <section id="state-results" class="state hidden">
         <section class="article-preview">
-          <p class="eyebrow">Article</p>
+          <div class="eyebrow-row">
+            <img class="sec-icon" src="icons/article.jpg" alt="" />
+            <p class="eyebrow">Article</p>
+          </div>
           <h1 id="article-title"></h1>
           <p id="article-meta" class="muted"></p>
           <p id="article-preview-text" class="article-text"></p>
@@ -46,44 +68,68 @@
         <section class="section section-highlight">
           <div class="section-header">
             <p class="eyebrow">Quick read</p>
-            <span id="caution-level" class="tag tag-unknown">Unknown</span>
+            <div class="score-pill">
+              <img id="caution-fruit" class="score-fruit hidden" alt="" />
+              <span id="caution-level" class="tag tag-unknown">Unknown</span>
+            </div>
           </div>
           <p id="caution-summary" class="section-copy"></p>
           <div id="caution-breakdown" class="breakdown"></div>
         </section>
 
         <section id="section-main-claims" class="section">
-          <p class="eyebrow">Main claims</p>
+          <div class="eyebrow-row">
+            <img class="sec-icon" src="icons/claims.png" alt="" />
+            <p class="eyebrow">Main claims</p>
+          </div>
           <div id="main-claims" class="list"></div>
         </section>
 
         <section id="section-evidence-check" class="section">
-          <p class="eyebrow">Evidence check</p>
+          <div class="eyebrow-row">
+            <img class="sec-icon" src="icons/evidence.png" alt="" />
+            <p class="eyebrow">Evidence check</p>
+          </div>
           <div id="evidence-check" class="list"></div>
         </section>
 
         <section id="section-original-sources" class="section">
-          <p class="eyebrow">Original study / source</p>
+          <div class="eyebrow-row">
+            <img class="sec-icon" src="icons/originalsource.png" alt="" />
+            <p class="eyebrow">Original study / source</p>
+          </div>
           <div id="original-sources" class="list"></div>
         </section>
 
         <section id="section-statistics-explained" class="section">
-          <p class="eyebrow">Statistics explained</p>
+          <div class="eyebrow-row">
+            <img class="sec-icon" src="icons/stats.png" alt="" />
+            <p class="eyebrow">Statistics explained</p>
+          </div>
           <div id="statistics-explained" class="list"></div>
         </section>
 
         <section id="section-people-interests" class="section">
-          <p class="eyebrow">People & interests</p>
+          <div class="eyebrow-row">
+            <img class="sec-icon" src="icons/author.jpg" alt="" />
+            <p class="eyebrow">People &amp; interests</p>
+          </div>
           <div id="people-interests" class="list"></div>
         </section>
 
         <section id="section-language-framing" class="section">
-          <p class="eyebrow">Language & framing</p>
+          <div class="eyebrow-row">
+            <img class="sec-icon" src="icons/framing.png" alt="" />
+            <p class="eyebrow">Language &amp; framing</p>
+          </div>
           <div id="language-framing" class="list"></div>
         </section>
 
         <section id="section-compared-coverage" class="section">
-          <p class="eyebrow">Compared coverage</p>
+          <div class="eyebrow-row">
+            <img class="sec-icon" src="icons/coverage.png" alt="" />
+            <p class="eyebrow">Compared coverage</p>
+          </div>
           <div id="compared-coverage" class="list"></div>
         </section>
       </section>

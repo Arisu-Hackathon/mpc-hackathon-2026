@@ -1,121 +1,171 @@
 // scoring.js
-// Turns a SecondRead analysis object into a transparent credibility breakdown.
-// This is NOT a truth score — it reflects how well-sourced and self-disclosed
-// an article is, based only on what the analysis surfaced.
+// Turns a SecondRead analysis into a transparent credibility breakdown.
+// This is NOT a truth score — it reflects how well-sourced, well-matched and
+// transparent the article is, based ONLY on what the analysis surfaced.
 //
-// We own the score, so we also own the justification: every "explanation" below
-// is derived directly from the same data the score was computed from. Nothing is
-// invented — the explanation only restates what produced the number.
+// Rebuilt for the new schema (quickRead / mainClaims / evidenceCheck /
+// originalSources / peopleAndInterests / languageAndFraming). We own the score,
+// so each "explanation" is derived directly from the same data that produced it.
 
-const RED_FLAG_PENALTIES = {
-  "worth checking": 5,
-  "methodology unclear": 8,
-  "not enough evidence": 6,
-  "possible conflict": 10
+// How strongly each main-claim status counts toward support.
+const CLAIM_STATUS_WEIGHT = {
+  "supported": 1,
+  "partly supported": 0.6,
+  "unclear": 0.4,
+  "overstated": 0.3,
+  "unsupported": 0
 };
 
-const FUNDING_KEYWORDS = ["conflict", "funded by", "sponsored"];
+// How well the cited support matches the claim.
+const MATCH_WEIGHT = {
+  "yes": 1,
+  "partly": 0.6,
+  "unclear": 0.4,
+  "source inaccessible": 0.4,
+  "no": 0
+};
 
-function scoreRedFlags(analysis) {
-  const flags = Array.isArray(analysis.redFlags) ? analysis.redFlags : [];
-  let score = 30;
-  const applied = [];
+// Whether the article represents the original source fairly.
+const FAIR_WEIGHT = {
+  "yes": 1,
+  "partly": 0.6,
+  "unclear": 0.4,
+  "source inaccessible": 0.4,
+  "no": 0
+};
 
-  for (const flag of flags) {
-    const penalty = RED_FLAG_PENALTIES[flag?.label];
-    if (penalty) {
-      score -= penalty;
-      applied.push({ label: flag.label, penalty });
-    }
-  }
+// Penalties (out of the category max) for interest/conflict signals.
+const INTEREST_PENALTY = {
+  "possible conflict": 8,
+  "conflict declared": 2,
+  "funding not found": 2,
+  "not enough information": 2,
+  "no conflict found": 0,
+  "no conflict declared": 0
+};
 
-  score = Math.max(0, score);
+// Penalties for framing/language issues.
+const FRAMING_PENALTY = {
+  "neutral framing": 0,
+  "attributed opinion": 1,
+  "unclear": 1,
+  "one-sided framing": 3,
+  "loaded language": 4,
+  "headline overstates body": 4
+};
 
-  let explanation;
-  if (applied.length === 0) {
-    explanation = flags.length
-      ? `Started at 30/30. None of the ${flags.length} flagged item(s) carried a penalty, so the full 30/30.`
-      : "Started at 30/30. No claims were flagged, so the full 30/30.";
-  } else {
-    const list = applied.map((a) => `"${a.label}" (−${a.penalty})`).join(", ");
-    explanation =
-      `Started at 30/30. ${applied.length} of ${flags.length} flagged item(s) lowered it: ` +
-      `${list}. See "Red flags" below for each claim.`;
-  }
-
-  return { score, explanation };
+function arr(value) {
+  return Array.isArray(value) ? value : [];
 }
 
-function scoreOriginalSource(analysis) {
-  const detected = Boolean(analysis.originalStudyOrReport?.detected);
-
-  return {
-    score: detected ? 20 : 0,
-    explanation: detected
-      ? "An original study or report was detected in the article, so the full 20/20."
-      : "No original study or report was detected in the article, so 0/20."
-  };
+function average(weights) {
+  if (!weights.length) return 0;
+  return weights.reduce((sum, w) => sum + w, 0) / weights.length;
 }
 
-function scoreAuthor(analysis) {
-  const name = analysis.authorBackground?.name;
-
-  return {
-    score: name ? 15 : 0,
-    explanation: name
-      ? `An author was identified (${name}), so the full 15/15.`
-      : "No author could be identified from the article, so 0/15."
-  };
+function tally(items, getKey) {
+  const counts = {};
+  items.forEach((item) => {
+    const key = getKey(item) || "unclear";
+    counts[key] = (counts[key] || 0) + 1;
+  });
+  return Object.entries(counts)
+    .map(([key, n]) => `${n} ${key}`)
+    .join(", ");
 }
 
-function scoreStatisticalEvidence(analysis) {
-  const stats = analysis.statisticalEvidence || {};
-  let score = 0;
-  const bits = [];
-
-  if (stats.summary && stats.summary.length > 30) {
-    score += 10;
-    bits.push("a statistical summary was present (+10)");
-  } else {
-    bits.push("no usable statistical summary (+0)");
+function scoreClaimSupport(analysis) {
+  const claims = arr(analysis.mainClaims);
+  if (!claims.length) {
+    return { score: 0, explanation: "No central claims were identified, so claim support could not be assessed (0/30)." };
   }
 
-  if (stats.sampleSize) {
-    score += 5;
-    bits.push("a sample size was given (+5)");
-  } else {
-    bits.push("no sample size (+0)");
-  }
-
-  if (stats.effectSize) {
-    score += 5;
-    bits.push("an effect size was given (+5)");
-  } else {
-    bits.push("no effect size (+0)");
-  }
+  const avg = average(claims.map((c) => CLAIM_STATUS_WEIGHT[c.status] ?? 0.4));
+  const score = Math.round(avg * 30);
 
   return {
     score,
-    explanation: `Scored from three parts: ${bits.join("; ")}. → ${score}/20.`
+    explanation: `Based on ${claims.length} main claim(s) — ${tally(claims, (c) => c.status)}. → ${score}/30.`
   };
 }
 
-function scoreFundingAndConflicts(analysis) {
-  const notes = Array.isArray(analysis.fundingAndConflicts)
-    ? analysis.fundingAndConflicts
-    : [];
+function scoreEvidenceMatch(analysis) {
+  const items = arr(analysis.evidenceCheck);
+  if (!items.length) {
+    return { score: 0, explanation: "No evidence checks were available, so evidence match could not be assessed (0/25)." };
+  }
 
-  const hasFlag = notes.some((note) => {
-    if (typeof note !== "string") return false;
-    const lower = note.toLowerCase();
-    return FUNDING_KEYWORDS.some((keyword) => lower.includes(keyword));
-  });
+  const avg = average(items.map((i) => MATCH_WEIGHT[i.sourceMatchesClaim] ?? 0.4));
+  const score = Math.round(avg * 25);
 
   return {
-    score: hasFlag ? 0 : 15,
-    explanation: hasFlag
-      ? "A funding or conflict-of-interest signal was found in the article, so 0/15."
-      : "No funding or conflict-of-interest concerns were found in the article, so the full 15/15."
+    score,
+    explanation: `Across ${items.length} evidence check(s), how well the source matched the claim — ${tally(items, (i) => i.sourceMatchesClaim)}. → ${score}/25.`
+  };
+}
+
+function scoreSources(analysis) {
+  const items = arr(analysis.originalSources);
+  if (!items.length) {
+    return { score: 0, explanation: "No original study, report, or dataset was identified, so 0/20." };
+  }
+
+  const avg = average(items.map((i) => FAIR_WEIGHT[i.articleRepresentsFairly] ?? 0.4));
+  const score = Math.round(avg * 20);
+
+  return {
+    score,
+    explanation: `${items.length} original source(s) found; how fairly the article represents them — ${tally(items, (i) => i.articleRepresentsFairly)}. → ${score}/20.`
+  };
+}
+
+function scoreInterests(analysis) {
+  const items = arr(analysis.peopleAndInterests);
+  if (!items.length) {
+    return { score: 15, explanation: "No people or interests raised a concern, so the full 15/15." };
+  }
+
+  const hits = [];
+  let penalty = 0;
+  items.forEach((p) => {
+    const pen = INTEREST_PENALTY[p.interestOrConflict] ?? 2;
+    if (pen) {
+      penalty += pen;
+      hits.push(p.interestOrConflict);
+    }
+  });
+  const score = Math.max(0, 15 - penalty);
+
+  return {
+    score,
+    explanation: hits.length
+      ? `Interest signals lowered this: ${hits.join(", ")}. → ${score}/15.`
+      : "No conflicts of interest surfaced among the people involved, so the full 15/15."
+  };
+}
+
+function scoreFraming(analysis) {
+  const items = arr(analysis.languageAndFraming);
+  if (!items.length) {
+    return { score: 10, explanation: "No language or framing issues were flagged, so the full 10/10." };
+  }
+
+  const hits = [];
+  let penalty = 0;
+  items.forEach((f) => {
+    const pen = FRAMING_PENALTY[f.verdict] ?? 1;
+    if (pen) {
+      penalty += pen;
+      hits.push(f.verdict);
+    }
+  });
+  const score = Math.max(0, 10 - penalty);
+
+  return {
+    score,
+    explanation: hits.length
+      ? `Framing issues lowered this: ${hits.join(", ")}. → ${score}/10.`
+      : "Framing read as neutral, so the full 10/10."
   };
 }
 
@@ -126,38 +176,26 @@ function levelForTotal(total) {
 }
 
 export function calculateScore(analysis) {
-  const redFlags = scoreRedFlags(analysis);
-  const originalSource = scoreOriginalSource(analysis);
-  const author = scoreAuthor(analysis);
-  const statisticalEvidence = scoreStatisticalEvidence(analysis);
-  const fundingAndConflicts = scoreFundingAndConflicts(analysis);
+  const claimSupport = scoreClaimSupport(analysis);
+  const evidenceMatch = scoreEvidenceMatch(analysis);
+  const sources = scoreSources(analysis);
+  const interests = scoreInterests(analysis);
+  const framing = scoreFraming(analysis);
 
   const total =
-    redFlags.score +
-    originalSource.score +
-    author.score +
-    statisticalEvidence.score +
-    fundingAndConflicts.score;
+    claimSupport.score +
+    evidenceMatch.score +
+    sources.score +
+    interests.score +
+    framing.score;
 
   return {
     breakdown: {
-      redFlags: { score: redFlags.score, outOf: 30, explanation: redFlags.explanation },
-      originalSource: {
-        score: originalSource.score,
-        outOf: 20,
-        explanation: originalSource.explanation
-      },
-      author: { score: author.score, outOf: 15, explanation: author.explanation },
-      statisticalEvidence: {
-        score: statisticalEvidence.score,
-        outOf: 20,
-        explanation: statisticalEvidence.explanation
-      },
-      fundingAndConflicts: {
-        score: fundingAndConflicts.score,
-        outOf: 15,
-        explanation: fundingAndConflicts.explanation
-      }
+      claimSupport: { score: claimSupport.score, outOf: 30, explanation: claimSupport.explanation },
+      evidenceMatch: { score: evidenceMatch.score, outOf: 25, explanation: evidenceMatch.explanation },
+      sources: { score: sources.score, outOf: 20, explanation: sources.explanation },
+      interests: { score: interests.score, outOf: 15, explanation: interests.explanation },
+      framing: { score: framing.score, outOf: 10, explanation: framing.explanation }
     },
     total,
     outOf: 100,
