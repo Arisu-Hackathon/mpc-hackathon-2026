@@ -27,21 +27,33 @@ export function applySourceMetadata(analysis, sourceMetadata) {
 
   const doi = sourceMetadata.doiStrings[0];
   const doiUrl = sourceMetadata.doiUrls[0];
-  const sourceNotes = analysis.originalStudyOrReport?.notes;
-  const doiNotes = `The article cites a source by DOI (${doi}). Treat this as a source citation. If the DOI page or study text was accessible, analyze whether the article accurately represents it; if it was not accessible, label the source as cited but inaccessible.`;
-  const nextAnalysis = {
-    ...analysis,
-    originalStudyOrReport: {
-      ...(analysis.originalStudyOrReport || {}),
-      detected: true,
-      title: analysis.originalStudyOrReport?.title || null,
-      url: analysis.originalStudyOrReport?.url || doiUrl,
-      notes: isMissingSourceText(sourceNotes) ? doiNotes : sourceNotes || doiNotes
-    }
-  };
+  const nextAnalysis = { ...analysis };
+  const originalSources = Array.isArray(analysis.originalSources)
+    ? analysis.originalSources.filter((source) => !isMissingSourceText(sourceText(source)))
+    : [];
 
-  nextAnalysis.redFlags = removeFalseMissingSourceFlags(analysis.redFlags);
-  nextAnalysis.evidenceTrail = addDoiEvidenceTrail(analysis.evidenceTrail, doi, doiUrl);
+  const hasDoiSource = originalSources.some((source) =>
+    sourceText(source).toLowerCase().includes(doi.toLowerCase()) ||
+    sourceText(source).toLowerCase().includes(doiUrl.toLowerCase())
+  );
+
+  if (!hasDoiSource) {
+    originalSources.push({
+      title: "not enough evidence",
+      doiOrUrl: doiUrl,
+      sourceType: "study",
+      whatItStudied: "not enough evidence",
+      whatItFound: "not enough evidence",
+      articleRepresentsFairly: "unclear",
+      limitations: [
+        "SecondRead detected a DOI citation. If live source retrieval was unavailable, the study content still needs to be checked."
+      ],
+      confidence: "high"
+    });
+  }
+
+  nextAnalysis.originalSources = originalSources;
+  nextAnalysis.evidenceCheck = removeFalseMissingSourceItems(analysis.evidenceCheck);
 
   return nextAnalysis;
 }
@@ -66,39 +78,32 @@ function normalizeDoi(doi) {
     .toLowerCase();
 }
 
-function removeFalseMissingSourceFlags(redFlags) {
-  if (!Array.isArray(redFlags)) {
+function removeFalseMissingSourceItems(items) {
+  if (!Array.isArray(items)) {
     return [];
   }
 
-  return redFlags.filter((flag) => {
-    const text = `${flag?.claim || ""} ${flag?.basis || ""}`.toLowerCase();
+  return items.filter((item) => {
+    const text = sourceText(item).toLowerCase();
     return !isMissingSourceText(text);
   });
 }
 
-function addDoiEvidenceTrail(evidenceTrail, doi, doiUrl) {
-  const items = Array.isArray(evidenceTrail)
-    ? evidenceTrail.filter((item) => !isMissingSourceText(`${item?.title || ""} ${item?.summary || ""}`))
-    : [];
-  const hasDoiItem = items.some((item) => {
-    const text = `${item?.title || ""} ${item?.summary || ""}`.toLowerCase();
-    return text.includes(doi.toLowerCase()) || text.includes(doiUrl.toLowerCase());
-  });
-
-  if (hasDoiItem) {
-    return items;
+function sourceText(value) {
+  if (!value) {
+    return "";
   }
 
-  return [
-    ...items,
-    {
-      title: "Original study citation",
-      summary: `The article cites a DOI: ${doiUrl}. A DOI counts as a source citation; SecondRead should analyze the DOI target when it is accessible.`
-    }
-  ];
+  if (typeof value === "string") {
+    return value;
+  }
+
+  return Object.values(value)
+    .flat()
+    .filter(Boolean)
+    .join(" ");
 }
 
 function isMissingSourceText(text = "") {
-  return /(no|without|missing|not found|not detected|not confirmed).{0,60}(source|study|citation|doi|link|reference|report|dataset)/i.test(text);
+  return /((\bno\b|\bwithout\b|\bmissing\b|\bnot found\b|\bnot detected\b|\bnot confirmed\b).{0,60}(source|study|citation|doi|link|reference|report|dataset))|((source|study|citation|doi|link|reference|report|dataset).{0,60}(\bmissing\b|\bnot found\b|\bnot detected\b|\bnot confirmed\b))/i.test(text);
 }
