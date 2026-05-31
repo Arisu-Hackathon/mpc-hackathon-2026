@@ -260,7 +260,8 @@ function renderListItem(item) {
     item.source ||
     item.topic ||
     item.label;
-  const copyText = buildItemCopy(item);
+  const detailFields = buildItemFields(item);
+  const directText = getDirectItemText(item);
   const metaText = [
     item.label && item.label !== titleText ? `Label: ${item.label}` : null,
     item.confidence ? `Confidence: ${item.confidence}` : null
@@ -280,22 +281,29 @@ function renderListItem(item) {
     wrapper.appendChild(meta);
   }
 
-  const copy = document.createElement("p");
-  copy.className = "list-item-copy";
-  copy.textContent = copyText || JSON.stringify(item);
-  wrapper.appendChild(copy);
+  if (directText) {
+    const copy = document.createElement("p");
+    copy.className = "list-item-copy";
+    copy.textContent = directText;
+    wrapper.appendChild(copy);
+  } else if (detailFields.length) {
+    wrapper.appendChild(renderItemFields(detailFields));
+  } else {
+    const copy = document.createElement("p");
+    copy.className = "list-item-copy";
+    copy.textContent = JSON.stringify(item);
+    wrapper.appendChild(copy);
+  }
 
   return wrapper;
 }
 
-function buildItemCopy(item) {
-  const directText = item.basis || item.notes || item.summary || item.context || item.answer || item.url;
+function getDirectItemText(item) {
+  return item.basis || item.notes || item.summary || item.context || item.answer || item.url;
+}
 
-  if (directText) {
-    return directText;
-  }
-
-  const fields = [
+function buildItemFields(item) {
+  return [
     ["Status", item.status],
     ["Why", item.why],
     ["Support", item.support],
@@ -345,12 +353,29 @@ function buildItemCopy(item) {
     ["Relevant ties", item.relevantTies],
     ["Disclosure", item.disclosure]
   ].filter(([, value]) => value);
+}
 
-  if (!fields.length) {
-    return JSON.stringify(item);
-  }
+function renderItemFields(fields) {
+  const list = document.createElement("div");
+  list.className = "detail-list";
 
-  return fields.map(([label, value]) => `${label}: ${value}`).join(" ");
+  fields.forEach(([label, value]) => {
+    const row = document.createElement("div");
+    row.className = "detail-row";
+
+    const labelEl = document.createElement("span");
+    labelEl.className = "detail-label";
+    labelEl.textContent = `${label}:`;
+
+    const valueEl = document.createElement("span");
+    valueEl.className = "detail-value";
+    valueEl.textContent = value;
+
+    row.append(labelEl, valueEl);
+    list.appendChild(row);
+  });
+
+  return list;
 }
 
 function truncate(text, maxLength) {
