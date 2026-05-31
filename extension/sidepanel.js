@@ -204,11 +204,12 @@ function renderQuickRead(analysis) {
   document.getElementById("caution-summary").textContent = summary.join(" ");
 }
 
-// Maps Gemini's overallSupport verdict to a caution level.
+// Maps Gemini's overallSupport verdict to a credibility level.
+// High = best (green), medium = so-so (amber), low = weak (red).
 function levelFromSupport(overallSupport) {
   const support = (overallSupport || "").toLowerCase();
-  if (support === "well supported" || support === "mostly supported") return "low";
-  if (support === "weakly supported") return "high";
+  if (support === "well supported" || support === "mostly supported") return "high";
+  if (support === "weakly supported") return "low";
   if (support === "mixed" || support === "unclear" || support === "not enough evidence") return "medium";
   return "unknown";
 }
