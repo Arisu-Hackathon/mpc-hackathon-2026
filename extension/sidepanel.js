@@ -194,17 +194,89 @@ function renderAnalysis(analysis) {
   renderList("reader-questions", analysis.readerQuestions, "No reader questions returned.");
 }
 
+const BREAKDOWN_LABELS = {
+  redFlags: "Red flags",
+  originalSource: "Source",
+  author: "Author",
+  statisticalEvidence: "Statistics",
+  fundingAndConflicts: "Funding"
+};
+
 function renderCaution(analysis) {
   const level = normalizeCautionLevel(analysis.cautionLevel);
   const tag = document.getElementById("caution-level");
+  const scoring = analysis.scoring;
   const summary = [
     analysis.analysisMode === "fallback" ? "Fallback mode: Gemini live analysis did not complete." : null,
     analysis.cautionSummary || "SecondRead did not return a caution summary."
   ].filter(Boolean);
 
-  tag.textContent = level;
+  // Show the numeric score when available, otherwise fall back to the level label.
+  tag.textContent = scoring ? `${scoring.total} / ${scoring.outOf}` : level;
   tag.className = `tag tag-${level}`;
+
+  // Summary keeps Souki's fallback notice while still showing the caution summary.
   document.getElementById("caution-summary").textContent = summary.join(" ");
+
+  renderBreakdown(scoring);
+}
+
+function renderBreakdown(scoring) {
+  const container = document.getElementById("caution-breakdown");
+  container.innerHTML = "";
+
+  if (!scoring || !scoring.breakdown) return;
+
+  Object.entries(scoring.breakdown).forEach(([key, part]) => {
+    if (!part || typeof part.score !== "number") return;
+
+    const item = document.createElement("div");
+    item.className = "breakdown-item";
+
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "breakdown-row";
+
+    const label = document.createElement("span");
+    label.className = "breakdown-label";
+    label.textContent = BREAKDOWN_LABELS[key] || key;
+
+    const bar = document.createElement("div");
+    bar.className = "breakdown-bar";
+    const fill = document.createElement("div");
+    fill.className = "breakdown-bar-fill";
+    const ratio = part.outOf ? Math.max(0, Math.min(1, part.score / part.outOf)) : 0;
+    fill.style.width = `${ratio * 100}%`;
+    bar.appendChild(fill);
+
+    const value = document.createElement("span");
+    value.className = "breakdown-value";
+    value.textContent = `${part.score}/${part.outOf}`;
+
+    const caret = document.createElement("span");
+    caret.className = "breakdown-caret";
+    caret.textContent = "▾"; // ▾
+
+    row.append(label, bar, value, caret);
+    item.appendChild(row);
+
+    // Tap a row to reveal why it got that score (derived from the real calculation).
+    if (part.explanation) {
+      const exp = document.createElement("p");
+      exp.className = "breakdown-exp hidden";
+      exp.textContent = part.explanation;
+      item.appendChild(exp);
+
+      row.addEventListener("click", () => {
+        const open = exp.classList.toggle("hidden") === false;
+        row.classList.toggle("open", open);
+      });
+    } else {
+      row.disabled = true;
+    }
+
+    container.appendChild(item);
+  });
 }
 
 function renderOriginalSource(source = {}) {
