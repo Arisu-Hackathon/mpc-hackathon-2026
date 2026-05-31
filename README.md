@@ -223,3 +223,6 @@ Only the import and the call need to change; the rest of the pipeline is identic
   **Groq** (`llama-3.3-70b-versatile`) available as an alternative.
 - Mozilla **Readability** for article extraction.
 ```
+
+## Presentation
+https://ulavaldti-my.sharepoint.com/:p:/r/personal/soelb9_ulaval_ca/Documents/SecondRead_News_Context.pptx?d=w56d5e16fb05347e78251d6f9c4ae86b1&csf=1&web=1&e=TRXBaf
