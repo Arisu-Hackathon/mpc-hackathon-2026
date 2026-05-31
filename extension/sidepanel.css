@@ -513,12 +513,16 @@ main {
 }
 
 .detail-label {
-  color: var(--ink);
-  font-weight: 800;
+  color: var(--aqua-deep);
+  font-weight: 600;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding-top: 2px;
 }
 
 .detail-value {
-  color: var(--muted);
+  color: var(--ink);
 }
 
 /* ---------- Score pill + fruit ---------- */

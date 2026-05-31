@@ -234,11 +234,11 @@ function renderList(id, items) {
   container.innerHTML = "";
 
   items.forEach((item) => {
-    container.appendChild(renderListItem(item));
+    container.appendChild(renderListItem(item, id));
   });
 }
 
-function renderListItem(item) {
+function renderListItem(item, listId) {
   const wrapper = document.createElement("div");
   wrapper.className = "list-item";
 
@@ -262,9 +262,10 @@ function renderListItem(item) {
     item.label;
   const detailFields = buildItemFields(item);
   const directText = getDirectItemText(item);
+  const showConfidence = listId !== "main-claims";
   const metaText = [
     item.label && item.label !== titleText ? `Label: ${item.label}` : null,
-    item.confidence ? `Confidence: ${item.confidence}` : null
+    showConfidence && item.confidence ? `Confidence: ${item.confidence}` : null
   ].filter(Boolean).join(" | ");
 
   if (titleText) {
