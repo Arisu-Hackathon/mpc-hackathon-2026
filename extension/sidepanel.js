@@ -202,6 +202,13 @@ const BREAKDOWN_LABELS = {
   fundingAndConflicts: "Funding"
 };
 
+// Bar colour reflects how strong the category scored.
+function ratioClass(ratio) {
+  if (ratio >= 0.66) return "fill-good";
+  if (ratio >= 0.34) return "fill-mid";
+  return "fill-low";
+}
+
 function renderCaution(analysis) {
   const level = normalizeCautionLevel(analysis.cautionLevel);
   const tag = document.getElementById("caution-level");
@@ -215,6 +222,20 @@ function renderCaution(analysis) {
   tag.textContent = scoring ? `${scoring.total} / ${scoring.outOf}` : level;
   tag.className = `tag tag-${level}`;
 
+  // Cute fruit that reflects the caution level (green apple / orange / strawberry).
+  const fruit = document.getElementById("caution-fruit");
+  const fruitByLevel = {
+    low: "icons/fruit-low.png",
+    medium: "icons/fruit-medium.png",
+    high: "icons/fruit-high.png"
+  };
+  if (fruitByLevel[level]) {
+    fruit.src = fruitByLevel[level];
+    fruit.classList.remove("hidden");
+  } else {
+    fruit.classList.add("hidden");
+  }
+
   // Summary keeps Souki's fallback notice while still showing the caution summary.
   document.getElementById("caution-summary").textContent = summary.join(" ");
 
@@ -227,7 +248,7 @@ function renderBreakdown(scoring) {
 
   if (!scoring || !scoring.breakdown) return;
 
-  Object.entries(scoring.breakdown).forEach(([key, part]) => {
+  Object.entries(scoring.breakdown).forEach(([key, part], index) => {
     if (!part || typeof part.score !== "number") return;
 
     const item = document.createElement("div");
@@ -244,10 +265,17 @@ function renderBreakdown(scoring) {
     const bar = document.createElement("div");
     bar.className = "breakdown-bar";
     const fill = document.createElement("div");
-    fill.className = "breakdown-bar-fill";
     const ratio = part.outOf ? Math.max(0, Math.min(1, part.score / part.outOf)) : 0;
-    fill.style.width = `${ratio * 100}%`;
+    fill.className = `breakdown-bar-fill ${ratioClass(ratio)}`;
+    // Start empty and let it fill up in a staggered cascade on reveal.
+    fill.style.width = "0%";
+    fill.style.transitionDelay = `${index * 110}ms`;
     bar.appendChild(fill);
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        fill.style.width = `${ratio * 100}%`;
+      })
+    );
 
     const value = document.createElement("span");
     value.className = "breakdown-value";
