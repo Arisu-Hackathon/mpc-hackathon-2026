@@ -1,37 +1,56 @@
 export function getMockAnalysis(article) {
+  const firstDoi = article.sourceMetadata?.doiStrings?.[0] || article.doiStrings?.[0];
+  const doiUrl = firstDoi ? `https://doi.org/${firstDoi}` : null;
+
   return {
     cautionLevel: "medium",
-    cautionSummary: "Some claims in this article are worth a second look.",
+    cautionSummary: firstDoi
+      ? "The article includes a DOI citation, so the source is present. This fallback response has not analyzed the DOI target, so restart/check Gemini live mode for source-level assessment."
+      : "Some claims in this article are worth a second look.",
 
-    redFlags: [
-      {
-        claim: "Statistics are mentioned without a source link.",
-        label: "worth checking",
-        basis: "No direct link to the original study was found in the article."
-      },
-      {
-        claim: "Author background is not disclosed.",
-        label: "not enough evidence",
-        basis: "The byline does not include credentials or affiliation."
-      }
-    ],
+    redFlags: firstDoi
+      ? []
+      : [
+          {
+            claim: "Statistics are mentioned without a source link.",
+            label: "worth checking",
+            basis: "No direct link to the original study was found in the article.",
+            confidence: "medium"
+          },
+          {
+            claim: "Author background is not disclosed.",
+            label: "not enough evidence",
+            basis: "The byline does not include credentials or affiliation.",
+            confidence: "medium"
+          }
+        ],
 
     evidenceTrail: [
       {
         title: "Article extracted",
-        summary: `SecondRead extracted the article from ${article.siteName || "this site"}.`
+        summary: `SecondRead extracted the article from ${article.siteName || "this site"}.`,
+        label: "verified source present",
+        confidence: "high"
       },
       {
         title: "Primary source check",
-        summary: "No original study, report, filing, or dataset was confirmed from the extracted text."
+        summary: firstDoi
+          ? `A DOI citation was detected: ${doiUrl}. This confirms that a source citation exists, but this fallback response did not inspect the study content.`
+          : "No original study, report, filing, or dataset was confirmed from the extracted text.",
+        label: firstDoi ? "source cited but not analyzed" : "source unclear",
+        confidence: firstDoi ? "high" : "medium"
       }
     ],
 
     originalStudyOrReport: {
-      detected: false,
+      detected: Boolean(firstDoi),
       title: null,
-      url: null,
-      notes: "No original source was found in the article text."
+      url: doiUrl,
+      label: firstDoi ? "study cited but not analyzed" : "original source not found",
+      notes: firstDoi
+        ? "A source citation is present. The live Gemini analysis needs to inspect the DOI target before SecondRead can say whether the article fairly represents the study."
+        : "No original source was found in the article text.",
+      confidence: firstDoi ? "high" : "medium"
     },
 
     statisticalEvidence: {

@@ -3,6 +3,7 @@
 
 const API_URL = "http://localhost:3000/api/analyze";
 const USE_LOCAL_MOCK = false;
+const ANALYSIS_SCHEMA_VERSION = 2;
 
 const btnAnalyze = document.getElementById("btn-analyze");
 const btnRetry = document.getElementById("btn-retry");
@@ -42,7 +43,11 @@ async function analyzeCurrentTab() {
     const analysis = await requestAnalysis(article);
 
     renderAnalysis(analysis);
-    chrome.storage.local.set({ lastArticle: article, lastAnalysis: analysis });
+    chrome.storage.local.set({
+      lastArticle: article,
+      lastAnalysis: analysis,
+      analysisSchemaVersion: ANALYSIS_SCHEMA_VERSION
+    });
     showState("results");
   } catch (error) {
     showError(error.message || "Unable to analyze this article.");
@@ -201,13 +206,17 @@ function renderCaution(analysis) {
   const level = normalizeCautionLevel(analysis.cautionLevel);
   const tag = document.getElementById("caution-level");
   const scoring = analysis.scoring;
+  const summary = [
+    analysis.analysisMode === "fallback" ? "Fallback mode: Gemini live analysis did not complete." : null,
+    analysis.cautionSummary || "SecondRead did not return a caution summary."
+  ].filter(Boolean);
 
   // Show the numeric score when available, otherwise fall back to the level label.
   tag.textContent = scoring ? `${scoring.total} / ${scoring.outOf}` : level;
   tag.className = `tag tag-${level}`;
 
-  document.getElementById("caution-summary").textContent =
-    analysis.cautionSummary || "SecondRead did not return a caution summary.";
+  // Summary keeps Souki's fallback notice while still showing the caution summary.
+  document.getElementById("caution-summary").textContent = summary.join(" ");
 
   renderBreakdown(scoring);
 }
@@ -275,6 +284,8 @@ function renderOriginalSource(source = {}) {
     source.detected ? "Original source detected." : "Original source not detected.",
     source.title || null,
     source.url || null,
+    source.label ? `Label: ${source.label}.` : null,
+    source.confidence ? `Confidence: ${source.confidence}.` : null,
     source.notes || null
   ].filter(Boolean);
 
@@ -287,7 +298,8 @@ function renderStatisticalEvidence(stats = {}) {
     stats.summary || "No statistical evidence summary returned.",
     stats.sampleSize ? `Sample size: ${stats.sampleSize}.` : null,
     stats.effectSize ? `Effect size: ${stats.effectSize}.` : null,
-    limitations.length ? `Limitations: ${limitations.join("; ")}.` : null
+    limitations.length ? `Limitations: ${limitations.join("; ")}.` : null,
+    stats.confidence ? `Confidence: ${stats.confidence}.` : null
   ].filter(Boolean);
 
   document.getElementById("statistical-evidence").textContent = lines.join(" ");
@@ -298,7 +310,8 @@ function renderAuthorBackground(author = {}) {
   const lines = [
     author.name ? `Author: ${author.name}.` : null,
     author.knownFromArticle || "No author background returned.",
-    notes.length ? notes.join(" ") : null
+    notes.length ? notes.join(" ") : null,
+    author.confidence ? `Confidence: ${author.confidence}.` : null
   ].filter(Boolean);
 
   document.getElementById("author-background").textContent = lines.join(" ");
@@ -333,14 +346,25 @@ function renderListItem(item) {
     return wrapper;
   }
 
-  const titleText = item.claim || item.title || item.label || item.question || item.source || item.topic;
+  const titleText = item.claim || item.title || item.question || item.source || item.topic || item.label;
   const copyText = item.basis || item.notes || item.summary || item.context || item.answer || item.url;
+  const metaText = [
+    item.label && item.label !== titleText ? `Label: ${item.label}` : null,
+    item.confidence ? `Confidence: ${item.confidence}` : null
+  ].filter(Boolean).join(" | ");
 
   if (titleText) {
     const title = document.createElement("p");
     title.className = "list-item-title";
     title.textContent = titleText;
     wrapper.appendChild(title);
+  }
+
+  if (metaText) {
+    const meta = document.createElement("p");
+    meta.className = "list-item-copy muted";
+    meta.textContent = metaText;
+    wrapper.appendChild(meta);
   }
 
   const copy = document.createElement("p");
@@ -370,8 +394,8 @@ function truncate(text, maxLength) {
 btnAnalyze.addEventListener("click", analyzeCurrentTab);
 btnRetry.addEventListener("click", analyzeCurrentTab);
 
-chrome.storage.local.get(["lastArticle", "lastAnalysis"], (data) => {
-  if (data.lastArticle && data.lastAnalysis) {
+chrome.storage.local.get(["lastArticle", "lastAnalysis", "analysisSchemaVersion"], (data) => {
+  if (data.lastArticle && data.lastAnalysis && data.analysisSchemaVersion === ANALYSIS_SCHEMA_VERSION) {
     currentArticle = data.lastArticle;
     renderArticlePreview(data.lastArticle);
     renderAnalysis(data.lastAnalysis);
