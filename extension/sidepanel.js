@@ -173,114 +173,49 @@ function renderAnalysis(analysis) {
   renderOptionalList("section-compared-coverage", "compared-coverage", analysis.comparedCoverage);
 }
 
-const BREAKDOWN_LABELS = {
-  claimSupport: "Claim support",
-  evidenceMatch: "Evidence",
-  sources: "Sources",
-  interests: "People",
-  framing: "Framing"
-};
-
 function renderQuickRead(analysis) {
   const quickRead = analysis.quickRead || {};
-  const supportLevel = normalizeSupportLevel(quickRead.overallSupport);
-  const cautionLevel = normalizeCautionLevel(analysis.cautionLevel);
+  const level = levelFromSupport(quickRead.overallSupport);
   const tag = document.getElementById("caution-level");
-  const scoring = analysis.scoring;
-  const level = scoring?.cautionLevel || "unknown";
   const summary = [
     analysis.analysisMode === "fallback" ? "Fallback mode: live analysis did not complete." : null,
     quickRead.summary || "SecondRead did not return a quick read."
   ].filter(Boolean);
 
-  // Show the numeric score when available, otherwise fall back to the level label.
-  tag.textContent = scoring ? `${scoring.total} / ${scoring.outOf}` : supportLevel;
-  tag.className = scoring ? `tag tag-${cautionLevel}` : `tag ${supportTagClass(supportLevel)}`;
+  // Just the caution level (low / medium / high), derived from Gemini's overallSupport.
+  tag.textContent = capitalize(level);
+  tag.className = `tag tag-${level}`;
 
-  // Cute fruit that reflects the caution level (green apple / orange / strawberry).
+  // Status icon reflects the level.
   const fruit = document.getElementById("caution-fruit");
-  const fruitByLevel = {
+  const iconByLevel = {
     low: "icons/vista/status-low.ico",
     medium: "icons/vista/status-medium.ico",
     high: "icons/vista/status-high.ico"
   };
-  if (fruitByLevel[level]) {
-    fruit.src = fruitByLevel[level];
+  if (iconByLevel[level]) {
+    fruit.src = iconByLevel[level];
     fruit.classList.remove("hidden");
   } else {
     fruit.classList.add("hidden");
   }
 
-  // Summary keeps Souki's fallback notice while still showing the caution summary.
+  // Summary keeps the fallback notice while still showing the quick-read summary.
   document.getElementById("caution-summary").textContent = summary.join(" ");
-
-  renderBreakdown(scoring);
 }
 
-function renderBreakdown(scoring) {
-  const container = document.getElementById("caution-breakdown");
-  container.innerHTML = "";
+// Maps Gemini's overallSupport verdict to a caution level.
+function levelFromSupport(overallSupport) {
+  const support = (overallSupport || "").toLowerCase();
+  if (support === "well supported" || support === "mostly supported") return "low";
+  if (support === "weakly supported") return "high";
+  if (support === "mixed" || support === "unclear" || support === "not enough evidence") return "medium";
+  return "unknown";
+}
 
-  if (!scoring || !scoring.breakdown) return;
-
-  Object.entries(scoring.breakdown).forEach(([key, part], index) => {
-    if (!part || typeof part.score !== "number") return;
-
-    const item = document.createElement("div");
-    item.className = "breakdown-item";
-
-    const row = document.createElement("button");
-    row.type = "button";
-    row.className = "breakdown-row";
-
-    const label = document.createElement("span");
-    label.className = "breakdown-label";
-    label.textContent = BREAKDOWN_LABELS[key] || key;
-
-    const bar = document.createElement("div");
-    bar.className = "breakdown-bar";
-    const fill = document.createElement("div");
-    fill.className = "breakdown-bar-fill";
-    const ratio = part.outOf ? Math.max(0, Math.min(1, part.score / part.outOf)) : 0;
-    fill.className = `breakdown-bar-fill ${ratioClass(ratio)}`;
-    // Start empty and let it fill up in a staggered cascade on reveal.
-    fill.style.width = "0%";
-    fill.style.transitionDelay = `${index * 110}ms`;
-    bar.appendChild(fill);
-    requestAnimationFrame(() =>
-      requestAnimationFrame(() => {
-        fill.style.width = `${ratio * 100}%`;
-      })
-    );
-
-    const value = document.createElement("span");
-    value.className = "breakdown-value";
-    value.textContent = `${part.score}/${part.outOf}`;
-
-    const caret = document.createElement("span");
-    caret.className = "breakdown-caret";
-    caret.textContent = "▾"; // ▾
-
-    row.append(label, bar, value, caret);
-    item.appendChild(row);
-
-    // Tap a row to reveal why it got that score (derived from the real calculation).
-    if (part.explanation) {
-      const exp = document.createElement("p");
-      exp.className = "breakdown-exp hidden";
-      exp.textContent = part.explanation;
-      item.appendChild(exp);
-
-      row.addEventListener("click", () => {
-        const open = exp.classList.toggle("hidden") === false;
-        row.classList.toggle("open", open);
-      });
-    } else {
-      row.disabled = true;
-    }
-
-    container.appendChild(item);
-  });
+function capitalize(text) {
+  if (!text) return "";
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 function renderOptionalList(sectionId, listId, items) {
@@ -415,50 +350,6 @@ function buildItemCopy(item) {
   }
 
   return fields.map(([label, value]) => `${label}: ${value}`).join(" ");
-}
-
-function normalizeSupportLevel(level) {
-  if (["well supported", "mostly supported", "mixed", "unclear", "weakly supported", "not enough evidence"].includes(level)) {
-    return level;
-  }
-
-  return "unknown";
-}
-
-function normalizeCautionLevel(level) {
-  if (["low", "medium", "high", "unknown"].includes(level)) {
-    return level;
-  }
-
-  return "unknown";
-}
-
-function supportTagClass(level) {
-  if (level === "well supported" || level === "mostly supported") {
-    return "tag-low";
-  }
-
-  if (level === "mixed" || level === "unclear" || level === "not enough evidence") {
-    return "tag-medium";
-  }
-
-  if (level === "weakly supported") {
-    return "tag-high";
-  }
-
-  return "tag-unknown";
-}
-
-function ratioClass(ratio) {
-  if (ratio >= 0.8) {
-    return "fill-good";
-  }
-
-  if (ratio >= 0.5) {
-    return "fill-mid";
-  }
-
-  return "fill-low";
 }
 
 function truncate(text, maxLength) {

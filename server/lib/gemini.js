@@ -32,7 +32,7 @@ Use the retrieved source context above when filling quickRead, mainClaims, evide
       }
     ],
     generationConfig: {
-      temperature: 0.2,
+      temperature: 0,
       responseMimeType: "application/json"
     }
   });
@@ -83,7 +83,7 @@ Do not return JSON.`;
       { google_search: {} }
     ],
     generationConfig: {
-      temperature: 0.2
+      temperature: 0
     }
   });
 

@@ -2,25 +2,16 @@ import express from "express";
 import { getMockAnalysis } from "../lib/mockAnalysis.js";
 import { callGemini } from "../lib/gemini.js";
 import { buildPrompt } from "../lib/prompt.js";
-import { calculateScore } from "../lib/scoring.js";
-import { applySourceMetadata, extractSourceMetadata } from "../lib/sourceMetadata.js";
+import {
+  applySourceMetadata,
+  extractSourceMetadata,
+  gateSourceVerification,
+  sourceUrlsToFetch
+} from "../lib/sourceMetadata.js";
 
 const router = express.Router();
 
 const USE_MOCK = false;
-
-// Applique le scoring de crédibilité et fusionne le résultat dans l'analyse.
-// cautionLevel est dérivé du score total pour rester cohérent avec le breakdown.
-// On appelle ceci APRÈS applySourceMetadata pour que le score reflète les sources détectées.
-function withScoring(analysis) {
-  const scoring = calculateScore(analysis);
-
-  return {
-    ...analysis,
-    cautionLevel: scoring.cautionLevel,
-    scoring
-  };
-}
 
 router.post("/", async (req, res) => {
   const { article } = req.body;
@@ -32,35 +23,40 @@ router.post("/", async (req, res) => {
     });
   }
 
-  // Détection de sources (DOI) : enrichit l'analyse et alimente le grounding web de Gemini.
+  // Détection de sources (DOI + liens académiques) : enrichit l'analyse et alimente le grounding Gemini.
   const sourceMetadata = extractSourceMetadata(article);
   const articleWithMetadata = {
     ...article,
     sourceMetadata
   };
+  // Tous les liens à faire récupérer par Gemini (DOIs + bmj/nature/PDF…), pas juste les DOIs.
+  const fetchUrls = sourceUrlsToFetch(sourceMetadata);
 
   // Mode mock
   if (USE_MOCK) {
-    const mock = applySourceMetadata(getMockAnalysis(articleWithMetadata), sourceMetadata);
-    return res.json(withScoring(mock));
+    const mock = gateSourceVerification(applySourceMetadata(getMockAnalysis(articleWithMetadata), sourceMetadata));
+    return res.json(mock);
   }
 
   // Mode Gemini
   try {
     const prompt = buildPrompt(articleWithMetadata);
-    const analysis = await callGemini(prompt, sourceMetadata.doiUrls);
-    const enriched = applySourceMetadata(analysis, sourceMetadata);
-    res.json(withScoring(enriched));
+    const analysis = await callGemini(prompt, fetchUrls);
+    // Gate APRÈS enrichissement : un verdict "yes" non confirmé par le fetch retombe à "source inaccessible".
+    const enriched = gateSourceVerification(applySourceMetadata(analysis, sourceMetadata));
+    res.json(enriched);
 
   } catch (err) {
     console.error("Gemini error:", err.message);
 
     // Fallback sur le mock si Gemini plante
     console.warn("Falling back to mock analysis.");
-    const fallbackAnalysis = applySourceMetadata(getMockAnalysis(articleWithMetadata), sourceMetadata);
+    const fallbackAnalysis = gateSourceVerification(
+      applySourceMetadata(getMockAnalysis(articleWithMetadata), sourceMetadata)
+    );
     fallbackAnalysis.analysisMode = "fallback";
     fallbackAnalysis.error = "Gemini live analysis failed; showing fallback extraction-based analysis.";
-    res.json(withScoring(fallbackAnalysis));
+    res.json(fallbackAnalysis);
   }
 });
 

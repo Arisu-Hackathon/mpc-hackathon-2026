@@ -23,6 +23,7 @@ Core product rules:
 - If retrieved DOI/source context is provided by the backend, use it to inspect the DOI target and cited study when accessible.
 - If only a DOI/link is provided and no retrieved source text is available, treat it as a valid citation but do not pretend you read the source.
 - If the DOI target or study is inaccessible, say "source inaccessible" or "study cited but not analyzed"; do not say no original source was provided.
+- The backend lists the source links it detected in the article below (DOIs plus academic/source domains such as BMJ, PubMed, Nature, journals, official reports, or PDFs). Treat every listed link as a cited source that IS present. Never say no source link or DOI was provided when links are listed. If you cannot open or verify a listed link, mark it "source detected but not analyzed" and set its articleRepresentsFairly to "source inaccessible".
 - Every major finding should include a confidence level: "high", "medium", "low", or "unknown".
 
 Run these checks internally before writing the JSON:
@@ -148,17 +149,24 @@ Use this JSON shape:
 }
 
 function formatDoiCitations(article) {
-  const dois = Array.isArray(article.sourceMetadata?.doiStrings)
-    ? article.sourceMetadata.doiStrings
+  const meta = article.sourceMetadata || {};
+  const dois = Array.isArray(meta.doiStrings)
+    ? meta.doiStrings
     : Array.isArray(article.doiStrings)
       ? article.doiStrings
       : [];
+  const sourceLinks = Array.isArray(meta.sourceLinks) ? meta.sourceLinks : [];
 
-  if (!dois.length) {
+  const lines = [
+    ...dois.map((doi) => `- DOI: https://doi.org/${doi}`),
+    ...sourceLinks.map((link) => `- ${link.kind}: ${link.url}`)
+  ];
+
+  if (!lines.length) {
     return "None detected";
   }
 
-  return dois.map((doi) => `- https://doi.org/${doi}`).join("\n");
+  return lines.join("\n");
 }
 
 function getCurrentDate() {
